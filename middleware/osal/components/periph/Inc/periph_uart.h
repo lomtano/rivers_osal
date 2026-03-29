@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
-#include "osal_status.h"
+#include "osal.h"
 
 #ifdef __cplusplus
 extern "C" {

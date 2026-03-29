@@ -20,6 +20,10 @@ OSAL_WEAK uint32_t osal_irq_disable(void) {
     return 0U;
 }
 
+/* Weak default global interrupt enable hook for non-integrated builds. */
+OSAL_WEAK void osal_irq_enable(void) {
+}
+
 /* Weak default critical-section exit hook for non-integrated builds. */
 OSAL_WEAK void osal_irq_restore(uint32_t prev_state) {
     (void)prev_state;

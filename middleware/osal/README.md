@@ -1,54 +1,66 @@
 # OSAL Middleware
 
-这是一个面向裸机、可跨 32 位 MCU 移植的轻量级 OSAL 雏形。核心层不依赖具体厂商 SDK，平台相关代码建议放在 `examples/` 或你自己的板级适配目录里。
+这是一个面向裸机 32 位 MCU 的轻量化 OSAL 工程骨架，目标是像小型 FreeRTOS 一样易移植，但保持更简单的协作式调度模型和更低的接入成本。
 
-## 当前设计
+当前这套 `middleware/osal` 已经按三层结构整理完成：
 
-- 核心控制对象统一从 `osal_mem` 管理的静态 OSAL 堆分配
-- 任务、队列、事件、互斥量、软件定时器都对用户暴露为 opaque handle
-- 外设桥接组件独立放在 `middleware/components/`
-- 中断相关接口通过 `osal_irq_disable()`、`osal_irq_restore()`、`osal_irq_is_in_isr()` 由平台实现
-- 软件定时器由 `osal_run()` 自动轮询，不需要你在主循环里额外调用 `osal_timer_poll()`
+- `system/`
+  OSAL 系统层，包含任务、队列、事件、互斥量、内存管理、时间基准、中断抽象。
+- `components/`
+  组件层，放可复用的小外设桥接组件，例如 UART、Flash。
+- `examples/`
+  示例层，放具体平台适配和使用案例，例如 `stm32f4`。
 
 ## 目录结构
 
-- `Inc/`：OSAL 公共头文件
-- `Src/`：OSAL 核心实现
-- `examples/stm32f4/`：STM32F4 适配与示例
-
-## 接入方式
-
-1. 把 `middleware/osal/Inc` 加入 include path。
-2. 把 `middleware/osal/Src` 下的源文件加入工程。
-3. 把 `middleware/components/periph` 和 `middleware/components/flash` 一起加入工程。
-4. 提供平台相关的中断接口：
-
-```c
-uint32_t osal_irq_disable(void);
-void osal_irq_restore(uint32_t prev_state);
-bool osal_irq_is_in_isr(void);
+```text
+middleware/osal/
+|-- system/
+|   |-- Inc/
+|   `-- Src/
+|-- components/
+|   |-- flash/
+|   |   |-- Inc/
+|   |   `-- Src/
+|   `-- periph/
+|       |-- Inc/
+|       `-- Src/
+|-- examples/
+|   `-- stm32f4/
+|-- README.md
+|-- PORTING_GUIDE.md
+|-- USAGE_EXAMPLES.md
+`-- CHANGELOG.md
 ```
 
-5. 选择一种时间基准接法：
+## 当前能力
 
-- 方式 A：在 1us 周期定时器中断里调用 `osal_timer_inc_tick()`
-- 方式 B：用 `osal_timer_set_us_provider()` 绑定一个真实的硬件 us 计数器
+- 协作式任务调度
+- 队列生产者/消费者
+- 事件与互斥量
+- 统一静态堆 `osal_mem`
+- 1us 计数入口 `osal_timer_inc_tick()`
+- HAL 风格 `osal_timer_get_tick()`
+- 单次与周期性软件定时器
+- 中断开关与 ISR 上下文判断
+- UART 单字节桥接组件
+- Flash 解锁/上锁/擦除/多写宽桥接组件
 
-6. 主循环里持续调用：
+## 接入原则
 
-```c
-while (1) {
-    osal_run();
-}
-```
+1. OSAL 核心不直接依赖具体 MCU SDK。
+2. 与芯片相关的东西都放进 `examples/<platform>/` 或你自己的板级适配目录。
+3. 组件层通过桥接模式复用，不把平台细节泄露到上层逻辑。
 
-## 平台桥接建议
+## 最常用的接入点
 
-- UART、Flash、SPI、I2C 这类外设抽象建议都放在 `middleware/components/`
-- OSAL 核心不要直接依赖任何具体 MCU SDK
-- STM32F4 示例只作为参考，移植到 GD32、N32 时只需要改平台桥接，不需要改 OSAL 核心
+- 中断接口：`osal_irq_disable()`、`osal_irq_enable()`、`osal_irq_restore()`、`osal_irq_is_in_isr()`
+- 时间接口：`osal_timer_inc_tick()` 或 `osal_timer_set_us_provider()`
+- 主循环：`osal_run()`
+- 串口重定向：`periph_uart_fputc()`
 
 ## 文档
 
-- 移植步骤：`middleware/PORTING_GUIDE.md`
-- 使用示例：`middleware/USAGE_EXAMPLES.md`
+- 移植步骤见 `middleware/osal/PORTING_GUIDE.md`
+- 使用示例见 `middleware/osal/USAGE_EXAMPLES.md`
+- 变更记录见 `middleware/osal/CHANGELOG.md`

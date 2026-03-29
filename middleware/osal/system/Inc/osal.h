@@ -12,11 +12,22 @@
 #ifndef OSAL_H
 #define OSAL_H
 
+#include <stdint.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#include "osal_status.h"
+typedef enum {
+    OSAL_OK = 0,
+    OSAL_ERROR = 1,
+    OSAL_ERR_TIMEOUT = 2,
+    OSAL_ERR_RESOURCE = 3,
+    OSAL_ERR_PARAM = 4,
+    OSAL_ERR_NOMEM = 5,
+    OSAL_ERR_ISR = 6,
+    OSAL_RESERVED = 0x7FFFFFFF
+} osal_status_t;
 
 #include "osal_task.h"
 #include "osal_queue.h"

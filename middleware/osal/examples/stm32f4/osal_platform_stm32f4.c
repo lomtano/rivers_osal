@@ -238,9 +238,14 @@ uint32_t osal_irq_disable(void) {
     return primask;
 }
 
+/* Enable global interrupts directly. */
+void osal_irq_enable(void) {
+    __enable_irq();
+}
+
 /* Restore the global interrupt state saved by osal_irq_disable(). */
 void osal_irq_restore(uint32_t prev_state) {
     if (prev_state == 0U) {
-        __enable_irq();
+        osal_irq_enable();
     }
 }

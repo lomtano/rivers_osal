@@ -13,7 +13,7 @@
 #define OSAL_QUEUE_H
 
 #include <stdint.h>
-#include "osal_status.h"
+#include "osal.h"
 #include "osal_timer.h" // for timeout-based helper
 #include "osal_irq.h"
 

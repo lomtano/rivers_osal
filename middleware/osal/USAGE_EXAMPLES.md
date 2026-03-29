@@ -1,6 +1,6 @@
-# Middleware Usage Examples
+# OSAL Usage Examples
 
-下面这些例子都已经对应写进了 `middleware/osal/examples/stm32f4/osal_integration_stm32f4.c`，这里再单独汇总一下用途。
+这份文档对应 `middleware/osal/examples/stm32f4/osal_integration_stm32f4.c` 里的示例内容。
 
 ## 1. 两个任务无阻塞点两个灯
 
@@ -9,38 +9,38 @@
 - 读取当前 `osal_timer_get_tick()`
 - 判断是否到自己的翻转时间
 - 到时间就翻转 LED
-- 没到时间就立刻返回
+- 没到时间就立即返回
 
-这样任务不会阻塞调度器。
+这样任务不会阻塞调度器，也不会像 `HAL_Delay()` 那样卡住主循环。
 
 ## 2. 队列生产者/消费者
 
 示例里有两个任务：
 
-- 生产者每 1000ms 往队列塞一个计数值
-- 消费者每轮调度都尝试非阻塞取消息，取到就打印
+- 生产者每 1000ms 往队列发送一个递增计数值
+- 消费者每轮调度都尝试非阻塞收消息，收到后打印
 
-这个模型很适合后面扩展成：
+这种模式后面很适合扩展成：
 
 - 串口异步发送缓冲
-- 传感器采样数据上报
-- 状态机事件分发
+- 传感器采样消息分发
+- 状态机事件投递
 
 ## 3. 单次和周期性软件定时器打印
 
-示例里同时演示了两种软件定时器：
+示例同时演示了：
 
-- 单次定时器：2 秒后打印一次
-- 周期定时器：每 1 秒打印一次
+- 单次软件定时器：2 秒后打印一次
+- 周期性软件定时器：每 1 秒打印一次
 
-软件定时器回调由 `osal_run()` 内部触发，不需要你在主循环额外写 `osal_timer_poll()`。
+软件定时器回调由 `osal_run()` 内部触发，不需要你在主循环中手动再调 `osal_timer_poll()`。
 
-## 4. UART 单字节桥接
+## 4. UART 组件桥接
 
 `periph_uart` 的核心思想是：
 
-- OSAL 和上层逻辑都不关心具体 MCU SDK
-- 只要求平台层提供一个“发送单字节”的函数
+- 上层逻辑不关心 MCU SDK
+- 平台层只需要提供“发送单字节”函数
 
 例如：
 
@@ -58,7 +58,7 @@ periph_uart_t *uart = periph_uart_create(&uart_bridge, &board_uart);
 periph_uart_bind_console(uart);
 ```
 
-如果你还想做 `printf` 重定向：
+如果你需要 `printf`：
 
 ```c
 int fputc(int ch, FILE *f) {
@@ -68,15 +68,13 @@ int fputc(int ch, FILE *f) {
 
 ## 5. Flash 组件桥接
 
-`periph_flash` 的桥接层重点就是把不同 MCU 的差异包进去：
+`periph_flash` 的目标是把不同 MCU 的 Flash 差异收敛在桥接层里，包括：
 
 - 解锁
 - 上锁
 - 擦除
 - 读取
-- 按不同写宽度编程
-
-你只需要根据目标芯片能力实现对应的桥接回调。
+- 按不同宽度编程
 
 如果芯片只支持 halfword 写：
 
@@ -84,10 +82,10 @@ int fputc(int ch, FILE *f) {
 
 如果芯片支持 word 或 doubleword 写：
 
-- 再补 `write_u32`
+- 再实现 `write_u32`
 - 或 `write_u64`
 
-上层可以直接调用：
+上层使用方式保持一致：
 
 ```c
 periph_flash_unlock(flash);
@@ -96,7 +94,16 @@ periph_flash_write(flash, demo_addr, payload, payload_len);
 periph_flash_lock(flash);
 ```
 
-## 6. 推荐初始化顺序
+## 6. STM32F4 示例分工
+
+当前 STM32F4 示例里：
+
+- `osal_platform_stm32f4.c/.h`
+  负责 TIM2 1us tick、IRQ、UART bridge、Flash bridge、LED 钩子
+- `osal_integration_stm32f4.c`
+  负责任务、队列、软件定时器和 Flash 示例调用
+
+## 7. 推荐初始化顺序
 
 ```c
 void app_init(void) {

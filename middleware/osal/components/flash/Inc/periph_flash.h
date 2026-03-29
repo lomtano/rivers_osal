@@ -2,7 +2,7 @@
 #define PERIPH_FLASH_H
 
 #include <stdint.h>
-#include "osal_status.h"
+#include "osal.h"
 
 #ifdef __cplusplus
 extern "C" {

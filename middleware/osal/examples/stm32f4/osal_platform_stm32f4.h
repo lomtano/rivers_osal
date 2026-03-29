@@ -81,6 +81,11 @@ bool osal_irq_is_in_isr(void);
 uint32_t osal_irq_disable(void);
 
 /**
+ * @brief Enable interrupts on STM32F4.
+ */
+void osal_irq_enable(void);
+
+/**
  * @brief Restore STM32F4 interrupt state saved by osal_irq_disable().
  * @param prev_state Previous PRIMASK value.
  */
