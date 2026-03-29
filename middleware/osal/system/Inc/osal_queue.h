@@ -24,19 +24,36 @@ extern "C" {
 typedef struct osal_queue osal_queue_t;
 
 /**
+ * @brief Create a queue whose storage comes from the unified OSAL heap.
+ * @param length Number of items the queue can hold.
+ * @param item_size Size of each item in bytes.
+ * @return Queue handle, or NULL on failure.
+ */
+osal_queue_t *osal_queue_create(uint32_t length, uint32_t item_size);
+
+/**
  * @brief Create a queue on top of a user-provided storage buffer.
  * @param buffer Raw queue storage.
  * @param length Number of items the queue can hold.
  * @param item_size Size of each item in bytes.
  * @return Queue handle, or NULL on failure.
+ * @note This queue can store any fixed-size message type, including structs,
+ *       pointers, and fixed-length arrays.
  */
-osal_queue_t *osal_queue_create(void *buffer, uint32_t length, uint32_t item_size);
+osal_queue_t *osal_queue_create_static(void *buffer, uint32_t length, uint32_t item_size);
 
 /**
  * @brief Destroy a queue control block.
  * @param q Queue handle.
  */
 void osal_queue_delete(osal_queue_t *q);
+
+/**
+ * @brief Query how many items are currently stored in the queue.
+ * @param q Queue handle.
+ * @return Current queued item count.
+ */
+uint32_t osal_queue_get_count(const osal_queue_t *q);
 
 // Non-blocking send/receive
 /**

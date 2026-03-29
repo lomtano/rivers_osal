@@ -34,11 +34,15 @@ typedef struct {
 } flash_demo_ctx_t;
 #endif
 
+typedef struct {
+    uint32_t sequence;
+    uint8_t payload[8];
+} queue_message_t;
+
 static periph_uart_t *g_uart = NULL;
 #ifdef OSAL_PLATFORM_ENABLE_FLASH_DEMO
 static periph_flash_t *g_flash = NULL;
 #endif
-static uint32_t g_queue_storage[8];
 static led_task_ctx_t g_led1_ctx = {200U, 0U, osal_platform_led1_toggle};
 static led_task_ctx_t g_led2_ctx = {500U, 0U, osal_platform_led2_toggle};
 static queue_producer_ctx_t g_queue_producer_ctx;
@@ -71,15 +75,24 @@ static void led_task(void *arg) {
 static void queue_producer_task(void *arg) {
     queue_producer_ctx_t *ctx = (queue_producer_ctx_t *)arg;
     uint32_t now = osal_timer_get_tick();
+    queue_message_t message;
+    uint32_t i;
 
     if (ctx == NULL) {
         return;
     }
 
     if ((int32_t)(now - ctx->next_tick) >= 0) {
-        uint32_t value = ctx->count++;
-        if (osal_queue_send(ctx->queue, &value) == OSAL_OK) {
-            printf("queue send: %lu\r\n", (unsigned long)value);
+        message.sequence = ctx->count++;
+        for (i = 0U; i < (uint32_t)sizeof(message.payload); ++i) {
+            message.payload[i] = (uint8_t)(message.sequence + i);
+        }
+
+        if (osal_queue_send(ctx->queue, &message) == OSAL_OK) {
+            printf("queue send: seq=%lu first=%u count=%lu\r\n",
+                   (unsigned long)message.sequence,
+                   (unsigned int)message.payload[0],
+                   (unsigned long)osal_queue_get_count(ctx->queue));
         }
         ctx->next_tick = now + 1000U;
     }
@@ -88,14 +101,18 @@ static void queue_producer_task(void *arg) {
 /* Poll the queue in a non-blocking way and print every received item. */
 static void queue_consumer_task(void *arg) {
     queue_consumer_ctx_t *ctx = (queue_consumer_ctx_t *)arg;
-    uint32_t value;
+    queue_message_t message;
 
     if (ctx == NULL) {
         return;
     }
 
-    if (osal_queue_recv(ctx->queue, &value) == OSAL_OK) {
-        printf("queue recv: %lu\r\n", (unsigned long)value);
+    if (osal_queue_recv(ctx->queue, &message) == OSAL_OK) {
+        printf("queue recv: seq=%lu bytes=%u,%u count=%lu\r\n",
+               (unsigned long)message.sequence,
+               (unsigned int)message.payload[0],
+               (unsigned int)message.payload[1],
+               (unsigned long)osal_queue_get_count(ctx->queue));
     }
 }
 
@@ -177,7 +194,7 @@ static void app_led_demo_init(void) {
 
 /* Create one queue plus producer/consumer tasks. */
 static void app_queue_demo_init(void) {
-    osal_queue_t *queue = osal_queue_create(g_queue_storage, 8U, sizeof(g_queue_storage[0]));
+    osal_queue_t *queue = osal_queue_create(8U, (uint32_t)sizeof(queue_message_t));
     osal_task_t *producer_task;
     osal_task_t *consumer_task;
 

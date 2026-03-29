@@ -28,12 +28,6 @@ typedef void (*osal_timer_callback_t)(void *arg);
 typedef struct osal_timer osal_timer_t; // opaque timer object
 
 /**
- * @brief Override the default microsecond time source.
- * @param get_us Function returning a wraparound 32-bit microsecond counter.
- */
-void osal_timer_set_us_provider(uint32_t (*get_us)(void));
-
-/**
  * @brief Read OSAL uptime in microseconds.
  * @return 32-bit wraparound microsecond tick.
  */
@@ -59,7 +53,7 @@ void osal_timer_delay_us(uint32_t us);
 
 /**
  * @brief Increment the internal OSAL tick by 1 microsecond.
- * @note Call this from a 1us periodic timer ISR when not using osal_timer_set_us_provider().
+ * @note Call this from a fixed 1us periodic timer ISR.
  */
 void osal_timer_inc_tick(void);
 

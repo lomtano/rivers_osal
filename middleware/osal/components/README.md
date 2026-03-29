@@ -1,17 +1,17 @@
-# Components
+# OSAL Components
 
-这里放的是 OSAL 组件层的小型可复用抽象模块。
+`components/` is reserved for reusable modules that sit above the OSAL core.
 
-当前包含：
+Current layout:
 
-- `usart/`
-  串口单字节桥接组件
-- `flash/`
-  内部 Flash 解锁、擦除、编程桥接组件
+- `periph/`
+  Peripheral bridge components
 
-这层的定位是：
+Future siblings can be added here too, for example:
 
-- 属于 `middleware/osal` 的一部分
-- 但不和系统调度内核强耦合
-- 通过桥接模式适配不同 MCU SDK
-- 后续可以继续扩展 RTT、Bootloader 等兄弟组件目录
+- `rtt/`
+- `bootloader/`
+- `storage/`
+
+This keeps `system/` focused on the OSAL core while `components/` holds optional,
+portable building blocks.
