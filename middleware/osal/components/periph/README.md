@@ -1,11 +1,11 @@
-# Peripheral Components
+# 外设组件层
 
-`components/periph/` holds bridge-style peripheral components.
+`components/periph/` 用来放桥接模式的外设小组件。
 
-Current modules:
+当前已有模块：
 
 - `usart/`
 - `flash/`
 
-Each module hides MCU SDK details behind a narrow callback table so the upper layer
-can stay portable.
+每个模块都通过一组很窄的函数指针表屏蔽底层 MCU SDK 差异，
+从而让上层逻辑尽量保持可移植。

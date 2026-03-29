@@ -1,24 +1,24 @@
-# Flash Bridge Component
+# Flash 桥接组件
 
-Location:
+位置：
 
 - `components/periph/flash/Inc/periph_flash.h`
 - `components/periph/flash/Src/periph_flash.c`
 
-## Purpose
+## 作用
 
-This component hides MCU-specific internal flash differences behind one reusable API.
+这个组件用来把不同 MCU 的内部 Flash 差异统一收敛到一套可复用接口中。
 
-Typical differences handled in the bridge:
+桥接层主要处理的差异包括：
 
-- unlock/lock sequence
-- erase granularity
-- write width support
-- raw read path
+- 解锁/上锁流程
+- 擦除粒度
+- 支持的写入宽度
+- 原始读取方式
 
-## Bridge callbacks
+## 桥接回调
 
-The bridge can implement any combination of:
+桥接层可以按目标平台能力实现下面任意组合：
 
 - `unlock`
 - `lock`
@@ -29,5 +29,5 @@ The bridge can implement any combination of:
 - `write_u32`
 - `write_u64`
 
-The generic `periph_flash_write()` helper automatically selects the widest legal write
-that matches the current address alignment and installed bridge callbacks.
+上层一般只调用 `periph_flash_write()`，组件内部会根据当前地址对齐情况和已经安装的函数指针，
+自动选择当前可用的最宽合法写入方式。

@@ -1,24 +1,23 @@
-# OSAL Usage Examples
+# OSAL 使用示例
 
-This document matches the STM32F4 demo at:
+本文对应的参考示例文件是：
 
 - `middleware/osal/examples/stm32f4/osal_integration_stm32f4.c`
 
-## 1. Two non-blocking LED tasks
+## 1. 两个无阻塞点灯任务
 
-The demo creates two cooperative tasks.
-Each task:
+示例中创建了两个协作式任务。每个任务都会：
 
-- reads `osal_timer_get_tick()`
-- checks whether its own next deadline has arrived
-- toggles one LED when due
-- returns immediately otherwise
+- 读取 `osal_timer_get_tick()`
+- 判断自己的下一次翻转时间是否已到
+- 到时就切换一次 LED
+- 没到时立即返回
 
-This keeps the scheduler responsive and avoids blocking with `HAL_Delay()`.
+这样调度器始终保持响应，不需要使用 `HAL_Delay()` 一类阻塞式延时。
 
-## 2. Generic queue producer/consumer
+## 2. 泛型队列生产者/消费者
 
-The queue demo uses a struct message, not a byte-only message:
+队列示例使用的是结构体消息，而不是单纯的字节流：
 
 ```c
 typedef struct {
@@ -27,25 +26,32 @@ typedef struct {
 } queue_message_t;
 ```
 
-The producer sends one `queue_message_t` every 1000 ms.
-The consumer receives the struct and prints its content.
+生产者每隔 `1000ms` 发送一个 `queue_message_t`，消费者取出后打印内容。
 
-The same queue API can also store:
+这一套队列接口同样可以存放：
 
-- pointers
-- fixed-size arrays
-- other structs
+- 指针
+- 定长数组
+- 其它结构体
 
-as long as the queue is created with the correct `item_size`.
+只要创建队列时传入正确的 `item_size` 即可。
 
-## 3. One-shot and periodic software timers
+当前 STM32F4 示例里，队列演示默认使用的是：
 
-The demo creates:
+```c
+osal_queue_create_static(g_queue_storage, 8U, sizeof(queue_message_t));
+```
 
-- one one-shot timer that fires after 2 seconds
-- one periodic timer that fires every 1 second
+也就是显式静态数组作为消息缓存区，更符合 MCU 裸机项目的内存使用习惯。
 
-Timer callbacks run from the `osal_run()` polling path, so the application loop stays:
+## 3. 单次和周期性软件定时器
+
+示例里创建了两个软件定时器：
+
+- 一个 `2s` 后触发一次的单次定时器
+- 一个每 `1s` 触发一次的周期定时器
+
+软件定时器回调在 `osal_run()` 内部轮询阶段触发，因此应用主循环只需保持：
 
 ```c
 while (1) {
@@ -53,14 +59,14 @@ while (1) {
 }
 ```
 
-## 4. USART bridge usage
+## 4. USART 桥接组件使用方式
 
-USART is now located under:
+`USART` 组件位于：
 
 - `middleware/osal/components/periph/usart`
 
-The bridge only needs one byte-send callback from the target SDK.
-After binding the component, `printf` can be redirected through:
+平台层只需要提供目标 SDK 的“发送单字节”函数桥接。挂载成功后，
+`printf` 重定向可以直接写成：
 
 ```c
 int fputc(int ch, FILE *f) {
@@ -68,13 +74,15 @@ int fputc(int ch, FILE *f) {
 }
 ```
 
-## 5. Flash bridge usage
+对上层来说，发送单字节、字符串、数组的接口就不需要再随着 MCU SDK 改动。
 
-Flash is located under:
+## 5. Flash 桥接组件使用方式
+
+`Flash` 组件位于：
 
 - `middleware/osal/components/periph/flash`
 
-Typical usage:
+典型调用流程如下：
 
 ```c
 periph_flash_unlock(flash);
@@ -83,15 +91,16 @@ periph_flash_write(flash, demo_addr, payload, payload_len);
 periph_flash_lock(flash);
 ```
 
-The width-specific writes stay hidden in the bridge implementation.
+不同 MCU 的扇区大小、擦除粒度和支持的写入宽度都由桥接层自己处理，
+上层不需要再关心具体用的是字节、半字、字还是双字写入。
 
-## 6. STM32F4 example split
+## 6. STM32F4 示例文件职责划分
 
-The STM32F4 example is split on purpose:
+STM32F4 示例刻意拆成两部分：
 
 - `osal_platform_stm32f4.c/.h`
-  Platform adaptation, timer IRQ, USART bridge, flash bridge, LED hooks
+  只负责平台适配，例如 `TIMx/SysTick` 接入、USART 桥接、Flash 桥接、LED 钩子
 - `osal_integration_stm32f4.c`
-  Example tasks, queue demo, software timer demo, flash demo usage
+  只负责业务示范，例如任务、队列、软件定时器、Flash 示例调用
 
-This same split is recommended when you port to GD32 or N32.
+后续移植到 GD32、N32 时，也建议保持同样的拆分方式。

@@ -43,6 +43,7 @@ static periph_uart_t *g_uart = NULL;
 #ifdef OSAL_PLATFORM_ENABLE_FLASH_DEMO
 static periph_flash_t *g_flash = NULL;
 #endif
+static queue_message_t g_queue_storage[8];
 static led_task_ctx_t g_led1_ctx = {200U, 0U, osal_platform_led1_toggle};
 static led_task_ctx_t g_led2_ctx = {500U, 0U, osal_platform_led2_toggle};
 static queue_producer_ctx_t g_queue_producer_ctx;
@@ -51,12 +52,12 @@ static queue_consumer_ctx_t g_queue_consumer_ctx;
 static flash_demo_ctx_t g_flash_demo_ctx;
 #endif
 
-/* Retarget printf through the UART component registered by the platform layer. */
+/* 通过平台层注册好的 USART 组件重定向 printf。 */
 int fputc(int ch, FILE *f) {
     return periph_uart_fputc(ch, f);
 }
 
-/* Toggle one LED at its own interval without blocking the scheduler. */
+/* 每个点灯任务都按自己的周期翻转 LED，不阻塞调度器。 */
 static void led_task(void *arg) {
     led_task_ctx_t *ctx = (led_task_ctx_t *)arg;
     uint32_t now = osal_timer_get_tick();
@@ -71,7 +72,7 @@ static void led_task(void *arg) {
     }
 }
 
-/* Periodically push one counter value into the queue. */
+/* 周期性往队列里投递一个结构体消息。 */
 static void queue_producer_task(void *arg) {
     queue_producer_ctx_t *ctx = (queue_producer_ctx_t *)arg;
     uint32_t now = osal_timer_get_tick();
@@ -98,7 +99,7 @@ static void queue_producer_task(void *arg) {
     }
 }
 
-/* Poll the queue in a non-blocking way and print every received item. */
+/* 非阻塞轮询队列，并打印取出的结构体消息。 */
 static void queue_consumer_task(void *arg) {
     queue_consumer_ctx_t *ctx = (queue_consumer_ctx_t *)arg;
     queue_message_t message;
@@ -116,13 +117,13 @@ static void queue_consumer_task(void *arg) {
     }
 }
 
-/* Demonstrate one-shot software timer output. */
+/* 单次软件定时器回调示例。 */
 static void oneshot_timer_callback(void *arg) {
     (void)arg;
-    printf("oneshot timer fired\r\n");
+    printf("single timer fired\r\n");
 }
 
-/* Demonstrate periodic software timer output. */
+/* 周期性软件定时器回调示例。 */
 static void periodic_timer_callback(void *arg) {
     static uint32_t count = 0U;
 
@@ -131,7 +132,7 @@ static void periodic_timer_callback(void *arg) {
 }
 
 #ifdef OSAL_PLATFORM_ENABLE_FLASH_DEMO
-/* Run one flash erase/program/readback sequence once after startup. */
+/* 上电后仅执行一次 Flash 擦写回读演示。 */
 static void flash_demo_task(void *arg) {
     flash_demo_ctx_t *ctx = (flash_demo_ctx_t *)arg;
     uint8_t payload[] = {0x52U, 0x56U, 0x4FU, 0x53U, 0x01U, 0x02U, 0x03U, 0x04U};
@@ -174,7 +175,7 @@ static void flash_demo_task(void *arg) {
 }
 #endif
 
-/* Create two cooperative LED tasks that each return immediately when idle. */
+/* 创建两个无阻塞点灯任务。 */
 static void app_led_demo_init(void) {
     osal_task_t *led1_task;
     osal_task_t *led2_task;
@@ -192,9 +193,9 @@ static void app_led_demo_init(void) {
     }
 }
 
-/* Create one queue plus producer/consumer tasks. */
+/* 创建一个静态缓存区队列，以及配套的生产者/消费者任务。 */
 static void app_queue_demo_init(void) {
-    osal_queue_t *queue = osal_queue_create(8U, (uint32_t)sizeof(queue_message_t));
+    osal_queue_t *queue = osal_queue_create_static(g_queue_storage, 8U, (uint32_t)sizeof(queue_message_t));
     osal_task_t *producer_task;
     osal_task_t *consumer_task;
 
@@ -218,7 +219,7 @@ static void app_queue_demo_init(void) {
     }
 }
 
-/* Create one one-shot timer and one periodic timer for UART output. */
+/* 创建一个单次定时器和一个周期定时器，用于串口打印演示。 */
 static void app_timer_demo_init(void) {
     int oneshot_timer = osal_timer_create(2000000U, false, oneshot_timer_callback, NULL);
     int periodic_timer = osal_timer_create(1000000U, true, periodic_timer_callback, NULL);
@@ -232,7 +233,7 @@ static void app_timer_demo_init(void) {
 }
 
 #ifdef OSAL_PLATFORM_ENABLE_FLASH_DEMO
-/* Create the optional flash demo task. Enable only after reserving a safe flash sector. */
+/* 创建可选 Flash 示例任务，启用前请先预留安全扇区。 */
 static void app_flash_demo_init(void) {
     osal_task_t *task;
 
@@ -245,7 +246,7 @@ static void app_flash_demo_init(void) {
 }
 #endif
 
-/* Example integration entry showing how to wire OSAL into STM32 startup. */
+/* STM32F4 集成入口示例。 */
 int main(void) {
     HAL_Init();
     SystemClock_Config();
@@ -258,8 +259,8 @@ int main(void) {
     g_uart = osal_platform_uart_create();
     if (g_uart != NULL) {
         (void)periph_uart_bind_console(g_uart);
-        printf("\r\nOSAL STM32F4 integration demo\r\n");
-        printf("TIM2 tick: 1us interrupt -> osal_timer_inc_tick()\r\n");
+        printf("\r\nOSAL STM32F4 demo\r\n");
+        printf("tick source: 1us irq -> osal_timer_inc_tick()\r\n");
     }
 
     app_led_demo_init();
@@ -276,7 +277,7 @@ int main(void) {
     }
 }
 
-/* TIM2 only forwards into the platform adapter so integration code stays clean. */
+/* 中断里只做转发，让平台适配和业务示例保持分层。 */
 void TIM2_IRQHandler(void) {
     osal_platform_tick_irq_handler();
 }

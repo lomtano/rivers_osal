@@ -1,26 +1,26 @@
-# USART Bridge Component
+# USART 桥接组件
 
-Location:
+位置：
 
 - `components/periph/usart/Inc/periph_uart.h`
 - `components/periph/usart/Src/periph_uart.c`
 
-## Purpose
+## 作用
 
-This component provides a small bridge for bare-metal console output and byte-stream
-transmission without coupling the upper layer to one MCU SDK.
+这个组件用于在裸机场景下提供统一的串口输出桥接层，
+让上层逻辑不再直接依赖某一家 MCU SDK。
 
-## Bridge requirement
+## 桥接要求
 
-The platform only needs to provide one callback:
+平台层只需要提供一个回调：
 
 - `write_byte`
 
-Once that callback is mounted, the component can offer:
+挂载这个回调后，组件就可以统一提供：
 
-- single-byte send
-- byte-array send
-- string send
-- `printf` retarget through `periph_uart_fputc()`
+- 单字节发送
+- 字节数组发送
+- 字符串发送
+- 通过 `periph_uart_fputc()` 实现 `printf` 重定向
 
-The public API still keeps the existing `periph_uart_*` naming for compatibility.
+为了兼容已有代码，当前公开 API 仍然保留 `periph_uart_*` 这一组命名。

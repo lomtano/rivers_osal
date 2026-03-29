@@ -1,17 +1,17 @@
-# OSAL Components
+# OSAL 组件层
 
-`components/` is reserved for reusable modules that sit above the OSAL core.
+`components/` 用来放位于 OSAL 系统层之上的可复用小组件。
 
-Current layout:
+当前结构：
 
 - `periph/`
-  Peripheral bridge components
+  外设桥接组件
 
-Future siblings can be added here too, for example:
+后续也可以继续在这里扩展：
 
 - `rtt/`
 - `bootloader/`
 - `storage/`
 
-This keeps `system/` focused on the OSAL core while `components/` holds optional,
-portable building blocks.
+这样 `system/` 可以始终专注于 OSAL 核心能力，而 `components/` 则承载那些可选、
+可复用、可移植的小功能模块。

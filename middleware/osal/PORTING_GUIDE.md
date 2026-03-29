@@ -1,48 +1,47 @@
-# OSAL Porting Guide
+# OSAL 移植指南
 
-This document describes how to move `middleware/osal` into another 32-bit MCU project
-such as STM32, GD32, or N32.
+本文说明如何把 `middleware/osal` 移植到另一套 32 位 MCU 工程中，例如 STM32、GD32、N32。
 
-## 1. Copy the folder
+## 1. 复制目录
 
-Copy the whole `middleware/osal/` folder.
+把整个 `middleware/osal/` 目录复制到目标工程中。
 
-At minimum you usually keep:
+最少通常保留：
 
 - `middleware/osal/system`
 - `middleware/osal/components`
 
-If you also want the STM32F4 reference, keep:
+如果你还想保留 STM32F4 参考示例，也一起复制：
 
 - `middleware/osal/examples`
 
-## 2. Add include paths
+## 2. 添加头文件路径
 
-Add these include paths to the target project:
+给工程加入以下头文件路径：
 
 - `middleware/osal/system/Inc`
 - `middleware/osal/components/periph/usart/Inc`
 - `middleware/osal/components/periph/flash/Inc`
 
-If you want the STM32F4 demo too:
+如果还要编译 STM32F4 示例，再加入：
 
 - `middleware/osal/examples/stm32f4`
 
-## 3. Add source files
+## 3. 添加源文件
 
-Add these source files:
+把以下源文件加入工程：
 
 - `middleware/osal/system/Src/*.c`
 - `middleware/osal/components/periph/usart/Src/*.c`
 - `middleware/osal/components/periph/flash/Src/*.c`
 
-Optional demo files:
+示例文件按需加入：
 
 - `middleware/osal/examples/stm32f4/*.c`
 
-## 4. Implement the platform IRQ hooks
+## 4. 实现平台中断抽象
 
-The OSAL core only requires a very small IRQ port:
+OSAL 系统层真正依赖的平台中断接口很少，只有下面四个：
 
 ```c
 uint32_t osal_irq_disable(void);
@@ -51,11 +50,12 @@ void osal_irq_restore(uint32_t prev_state);
 bool osal_irq_is_in_isr(void);
 ```
 
-Put these in your platform adapter, not in application code.
+这些函数应当放在平台适配层里，不要散落在应用代码里。
 
-## 5. Configure one 1us timer interrupt
+## 5. 接入 1us 中断源
 
-The timer module now uses only one input path, similar to `HAL_IncTick()`:
+`osal_timer` 现在的使用方式和 `HAL_IncTick()` 很接近：  
+平台层只需要在固定 `1us` 周期的中断里调用一次 `osal_timer_inc_tick()`。
 
 ```c
 void TIMx_IRQHandler(void) {
@@ -63,19 +63,40 @@ void TIMx_IRQHandler(void) {
 }
 ```
 
-With that single ISR call, OSAL automatically maintains:
+有了这一次调用后，OSAL 内部会自动维护：
 
-- a 32-bit wrapping microsecond counter
-- a 32-bit wrapping millisecond tick
-- microsecond busy delay
-- software timer time base
-- timeout handling used by other OSAL services
+- 32 位微秒计数
+- 32 位毫秒 `tick`
+- 微秒忙等待延时
+- 软件定时器时间基准
+- 其它 OSAL 服务使用到的超时回绕判断
 
-You do not need to register a custom time-provider callback anymore.
+你不再需要自己挂额外的计时回调函数。
 
-## 6. Optional: replace the default OSAL heap
+## 6. STM32F4 模板适配方式
 
-If you do not want to use the default internal heap:
+`middleware/osal/examples/stm32f4/osal_platform_stm32f4.h` 已经整理成模板骨架。
+
+如果你使用通用 `TIMx`：
+
+1. 修改这些宏，让它们匹配你的定时器资源：
+   `OSAL_PLATFORM_TICK_TIM_INSTANCE`
+   `OSAL_PLATFORM_TICK_TIM_IRQn`
+   `OSAL_PLATFORM_TICK_TIM_CLK_ENABLE()`
+   `OSAL_PLATFORM_TICK_TIM_APB_BUS`
+2. 启动阶段调用 `osal_platform_tick_start()`
+3. 在对应的 `TIMx_IRQHandler()` 里调用 `osal_platform_tick_irq_handler()`
+
+如果你使用 `SysTick`：
+
+1. 自己保证 `SysTick` 的中断周期就是 `1us`
+2. 在 `SysTick_Handler()` 中调用 `osal_platform_systick_handler()`
+
+一般来说，裸机项目更推荐使用独立通用定时器驱动 OSAL tick，避免把 `SysTick` 压到过高频率。
+
+## 7. 可选：替换默认 OSAL 静态堆
+
+如果你不想使用 `osal_mem` 内部自带的默认静态大数组，可以在启动早期换成你自己的静态缓冲区：
 
 ```c
 static uint8_t g_osal_heap[8192];
@@ -85,11 +106,12 @@ void board_osal_heap_init(void) {
 }
 ```
 
-Call this before creating tasks, queues, mutexes, events, timers, or components.
+这个缓冲区依然是静态内存，不是系统 `heap`。  
+请在创建任务、队列、互斥量、事件、软件定时器和组件之前完成初始化。
 
-## 7. Main loop
+## 8. 主循环
 
-Keep the application loop minimal:
+应用主循环尽量保持最简：
 
 ```c
 while (1) {
@@ -97,17 +119,17 @@ while (1) {
 }
 ```
 
-`osal_run()` already dispatches software timer callbacks internally.
+`osal_run()` 内部已经会处理软件定时器轮询。
 
-## 8. USART bridge porting
+## 9. USART 组件移植
 
-USART lives at:
+`USART` 组件位于：
 
 - `middleware/osal/components/periph/usart`
 
-The component API still uses the existing `periph_uart_*` names for compatibility.
+为了兼容之前代码，当前组件对外仍然使用 `periph_uart_*` 这一组 API 名称。
 
-The platform only needs to provide one byte-send bridge:
+平台层只需要提供一个“发送单字节”的桥接函数：
 
 ```c
 static osal_status_t board_uart_write_byte(void *context, uint8_t byte) {
@@ -116,7 +138,7 @@ static osal_status_t board_uart_write_byte(void *context, uint8_t byte) {
 }
 ```
 
-Then bind it:
+然后挂载桥接：
 
 ```c
 static const periph_uart_bridge_t uart_bridge = {
@@ -127,7 +149,7 @@ periph_uart_t *uart = periph_uart_create(&uart_bridge, &board_uart);
 periph_uart_bind_console(uart);
 ```
 
-And redirect `printf`:
+若要重定向 `printf`，可直接写：
 
 ```c
 int fputc(int ch, FILE *f) {
@@ -135,13 +157,13 @@ int fputc(int ch, FILE *f) {
 }
 ```
 
-## 9. Flash bridge porting
+## 10. Flash 组件移植
 
-Flash lives at:
+`Flash` 组件位于：
 
 - `middleware/osal/components/periph/flash`
 
-The bridge may implement any combination of:
+桥接层可按目标 MCU 能力实现以下任意组合：
 
 - `unlock`
 - `lock`
@@ -152,34 +174,41 @@ The bridge may implement any combination of:
 - `write_u32`
 - `write_u64`
 
-Different MCUs expose different write widths. That is expected.
-The upper layer always calls `periph_flash_write()`, and the component chooses the
-widest valid write operation based on address alignment and available callbacks.
+不同 MCU 支持的擦写粒度、可写宽度本来就不同，这属于正常差异。  
+上层始终调用 `periph_flash_write()`，组件内部会根据地址对齐和已安装的函数指针，自动选择当前可用的最宽合法写法。
 
-## 10. Queue porting notes
+## 11. 队列移植说明
 
-`osal_queue` is a generic fixed-item queue, like a small FreeRTOS queue.
-It is not limited to `uint8_t` messages.
+`osal_queue` 是一个泛型固定成员大小队列，思路和小型化的 FreeRTOS 队列类似，  
+它并不只支持 `uint8_t`。
 
-Examples:
+示例：
 
-- Pointer queue: `item_size = sizeof(my_msg_t *)`
-- Struct queue: `item_size = sizeof(my_msg_t)`
-- Fixed array queue:
+- 指针队列：`item_size = sizeof(my_msg_t *)`
+- 结构体队列：`item_size = sizeof(my_msg_t)`
+- 定长数组队列：
 
 ```c
 typedef uint8_t can_frame_t[8];
 osal_queue_t *q = osal_queue_create(16U, sizeof(can_frame_t));
 ```
 
-The queue copies `item_size` bytes per item internally.
+队列内部每次按 `item_size` 拷贝消息，所以结构体、指针、数组本身都可以作为队列成员。
 
-## 11. Recommended validation order
+如果你希望 MCU 工程完全避免动态对象申请，建议优先使用：
 
-1. Verify `osal_irq_*`
-2. Verify `osal_timer_get_tick()` increments
-3. Verify one minimal task runs under `osal_run()`
-4. Verify USART output
-5. Verify software timer callbacks
-6. Verify queue send/receive
-7. Verify flash component operations
+```c
+osal_queue_create_static(buffer, length, item_size);
+```
+
+这样消息缓存区完全由你自己的静态数组提供。
+
+## 12. 建议验证顺序
+
+1. 先验证 `osal_irq_*`
+2. 再验证 `osal_timer_get_tick()` 是否正常递增
+3. 再验证一个最小任务能否在 `osal_run()` 下正常运行
+4. 再验证 USART 输出
+5. 再验证软件定时器回调
+6. 再验证队列收发
+7. 最后验证 Flash 组件

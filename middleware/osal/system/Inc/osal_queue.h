@@ -24,21 +24,22 @@ extern "C" {
 typedef struct osal_queue osal_queue_t;
 
 /**
- * @brief Create a queue whose storage comes from the unified OSAL heap.
- * @param length Number of items the queue can hold.
- * @param item_size Size of each item in bytes.
- * @return Queue handle, or NULL on failure.
+ * @brief 通过 OSAL 统一静态堆创建一个队列。
+ * @param length 队列可容纳的消息个数。
+ * @param item_size 单个消息项大小，单位字节。
+ * @return 队列句柄，失败时返回 NULL。
+ * @note 此接口分配的是 `osal_mem` 管理的静态内存，不依赖 libc/system heap。
  */
 osal_queue_t *osal_queue_create(uint32_t length, uint32_t item_size);
 
 /**
- * @brief Create a queue on top of a user-provided storage buffer.
- * @param buffer Raw queue storage.
- * @param length Number of items the queue can hold.
- * @param item_size Size of each item in bytes.
- * @return Queue handle, or NULL on failure.
- * @note This queue can store any fixed-size message type, including structs,
- *       pointers, and fixed-length arrays.
+ * @brief 基于用户提供的静态缓冲区创建一个队列。
+ * @param buffer 原始队列存储区。
+ * @param length 队列可容纳的消息个数。
+ * @param item_size 单个消息项大小，单位字节。
+ * @return 队列句柄，失败时返回 NULL。
+ * @note 该接口可以存放任意“固定长度”的消息类型，包括结构体、指针、
+ *       定长数组以及它们的组合，MCU 裸机场景下推荐优先使用此接口。
  */
 osal_queue_t *osal_queue_create_static(void *buffer, uint32_t length, uint32_t item_size);
 
