@@ -35,12 +35,16 @@
 
 软件定时器回调由 `osal_run()` 内部触发，不需要你在主循环中手动再调 `osal_timer_poll()`。
 
-## 4. UART 组件桥接
+## 4. USART 组件桥接
 
 `periph_uart` 的核心思想是：
 
 - 上层逻辑不关心 MCU SDK
 - 平台层只需要提供“发送单字节”函数
+
+当前目录位置是：
+
+- `middleware/osal/components/usart`
 
 例如：
 

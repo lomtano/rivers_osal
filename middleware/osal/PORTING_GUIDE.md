@@ -20,7 +20,7 @@
 建议加入这些 include path：
 
 - `middleware/osal/system/Inc`
-- `middleware/osal/components/periph/Inc`
+- `middleware/osal/components/usart/Inc`
 - `middleware/osal/components/flash/Inc`
 - `middleware/osal/examples/stm32f4`
 
@@ -29,7 +29,7 @@
 至少加入：
 
 - `middleware/osal/system/Src/*.c`
-- `middleware/osal/components/periph/Src/*.c`
+- `middleware/osal/components/usart/Src/*.c`
 - `middleware/osal/components/flash/Src/*.c`
 
 如果你需要参考 STM32F4 示例，再加入：
@@ -114,9 +114,12 @@ while (1) {
 
 `osal_run()` 内部已经会自动执行软件定时器轮询。
 
-## 8. UART 组件移植
+## 8. USART 组件移植
 
-UART 组件只要求你提供一个“发送单字节”的桥接函数：
+`components/usart/` 目录当前放的是串口桥接组件。
+组件 API 目前仍然保持 `periph_uart_*` 命名，这样先不打断已有示例和移植代码。
+
+USART 组件只要求你提供一个“发送单字节”的桥接函数：
 
 ```c
 static osal_status_t board_uart_write_byte(void *context, uint8_t byte) {
@@ -165,7 +168,22 @@ Flash 组件桥接时重点实现：
 
 上层统一调用 `periph_flash_write()` 即可，组件会根据地址对齐和桥接能力自动选择最合适的写宽度。
 
-## 10. 平台示例组织建议
+## 10. 组件层扩展建议
+
+现在组件层按“一个功能一个目录”的方式组织，当前已有：
+
+- `components/usart`
+- `components/flash`
+
+后续如果你再加：
+
+- `components/rtt`
+- `components/bootloader`
+- `components/storage`
+
+也可以继续保持同样的结构。
+
+## 11. 平台示例组织建议
 
 参考 `middleware/osal/examples/stm32f4/` 的分工：
 
@@ -176,14 +194,14 @@ Flash 组件桥接时重点实现：
 
 建议你后续迁移到 GD32/N32 时也继续保持这种结构。
 
-## 11. 推荐验证顺序
+## 12. 推荐验证顺序
 
 建议按这个顺序验证：
 
 1. `osal_irq_*` 正常
 2. `osal_timer_get_tick()` 正常增长
 3. `osal_run()` + 一个最小任务正常运行
-4. UART 组件打印正常
+4. USART 组件打印正常
 5. 软件定时器触发正常
 6. 队列生产者/消费者正常
 7. Flash 组件示例正常

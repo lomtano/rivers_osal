@@ -7,7 +7,7 @@
 - `system/`
   OSAL 系统层，包含任务、队列、事件、互斥量、内存管理、时间基准、中断抽象。
 - `components/`
-  组件层，放可复用的小外设桥接组件，例如 UART、Flash。
+  组件层，放可复用的小组件，例如 USART、Flash，后续也可以扩展 RTT、Bootloader 等。
 - `examples/`
   示例层，放具体平台适配和使用案例，例如 `stm32f4`。
 
@@ -22,7 +22,7 @@ middleware/osal/
 |   |-- flash/
 |   |   |-- Inc/
 |   |   `-- Src/
-|   `-- periph/
+|   `-- usart/
 |       |-- Inc/
 |       `-- Src/
 |-- examples/
@@ -43,7 +43,7 @@ middleware/osal/
 - HAL 风格 `osal_timer_get_tick()`
 - 单次与周期性软件定时器
 - 中断开关与 ISR 上下文判断
-- UART 单字节桥接组件
+- USART 单字节桥接组件
 - Flash 解锁/上锁/擦除/多写宽桥接组件
 
 ## 接入原则

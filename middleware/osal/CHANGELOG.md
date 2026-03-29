@@ -8,6 +8,7 @@
 - 将组件层收拢到 `middleware/osal/components/`
 - 保留平台示例在 `middleware/osal/examples/`
 - 将移植文档和示例文档统一放到 `middleware/osal/` 根目录
+- 将串口组件目录从 `components/periph/` 调整为 `components/usart/`
 
 ### 接口调整
 
@@ -18,7 +19,7 @@
 ### 架构调整
 
 - 统一使用 `osal_mem` 管理 OSAL 控制对象和组件对象分配
-- 组件层采用桥接模式，支持 UART 和 Flash 两类抽象组件
+- 组件层采用桥接模式，支持 USART 和 Flash 两类抽象组件
 - STM32F4 示例中将平台适配代码与使用示例代码分离
 
 ### 示例与文档
@@ -28,3 +29,4 @@
 - 增加单次和周期性软件定时器打印示例
 - 增加 Flash 组件桥接与使用示例
 - 重写 README、移植指南和使用示例文档
+- 统一组件层说明，明确后续可扩展 RTT、Bootloader 等兄弟组件
