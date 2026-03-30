@@ -1,15 +1,4 @@
-/******************************************************************************
- * Copyright (C) 2024-2026 rivers. All rights reserved.
- *
- * @author JH
- *
- * @version V1.0 2023-12-03
- *
- * @note 1 tab == 4 spaces!
- *
- *****************************************************************************/
-
-#ifndef OSAL_TASK_H
+﻿#ifndef OSAL_TASK_H
 #define OSAL_TASK_H
 
 #include <stdbool.h>
@@ -21,7 +10,20 @@ extern "C" {
 
 typedef void (*osal_task_fn_t)(void *arg);
 
-typedef struct osal_task osal_task_t; // opaque
+typedef struct osal_task osal_task_t; /* 不透明任务句柄 */
+
+/**
+ * @brief 任务优先级。
+ * @note 裸机下这里不是抢占式优先级，而是“调度检查优先级”：
+ *       高优先级任务每轮先检查，中优先级随后检查，低优先级隔几轮再检查一次，
+ *       或者在高/中优先级没有可运行任务时补充检查。
+ */
+typedef enum {
+    OSAL_TASK_PRIORITY_HIGH = 0,
+    OSAL_TASK_PRIORITY_MEDIUM = 1,
+    OSAL_TASK_PRIORITY_LOW = 2,
+    OSAL_TASK_PRIORITY_COUNT
+} osal_task_priority_t;
 
 typedef enum {
     OSAL_TASK_READY = 0,
@@ -31,48 +33,49 @@ typedef enum {
 } osal_task_state_t;
 
 /**
- * @brief Create a cooperative task object.
- * @param fn Task entry function.
- * @param arg User argument passed to fn.
- * @return Task handle, or NULL on failure.
+ * @brief 创建一个协作式任务对象，并指定调度优先级。
+ * @param fn 任务入口函数。
+ * @param arg 传递给 fn 的用户参数。
+ * @param priority 任务调度优先级。
+ * @return 成功返回任务句柄，失败返回 NULL。
  */
-osal_task_t *osal_task_create(osal_task_fn_t fn, void *arg);
+osal_task_t *osal_task_create(osal_task_fn_t fn, void *arg, osal_task_priority_t priority);
 
 /**
- * @brief Destroy a task object.
- * @param task Task handle.
+ * @brief 销毁一个任务对象。
+ * @param task 任务句柄。
  */
 void osal_task_delete(osal_task_t *task);
 
 /**
- * @brief Mark a task ready to run.
- * @param task Task handle.
- * @return OSAL status code.
+ * @brief 将任务标记为可运行状态。
+ * @param task 任务句柄。
+ * @return OSAL 状态码。
  */
 osal_status_t osal_task_start(osal_task_t *task);
 
 /**
- * @brief Stop a task from being scheduled.
- * @param task Task handle.
- * @return OSAL status code.
+ * @brief 停止调度某个任务。
+ * @param task 任务句柄。
+ * @return OSAL 状态码。
  */
 osal_status_t osal_task_stop(osal_task_t *task);
 
 /**
- * @brief Put a task into blocked state for a duration.
- * @param task Task handle, or NULL for the current task.
- * @param ms Sleep duration in milliseconds.
- * @return OSAL status code.
+ * @brief 让一个任务休眠指定时间。
+ * @param task 任务句柄，传 NULL 表示当前任务。
+ * @param ms 休眠时长，单位为毫秒。
+ * @return OSAL 状态码。
  */
 osal_status_t osal_task_sleep(osal_task_t *task, uint32_t ms);
 
 /**
- * @brief Yield cooperatively so other tasks and timers can advance.
+ * @brief 主动让出执行权，给同级或其他级任务运行机会。
  */
 void osal_task_yield(void);
 
 /**
- * @brief Run one scheduling pass over all ready tasks.
+ * @brief 执行一轮协作式调度。
  */
 void osal_run(void);
 
@@ -80,4 +83,4 @@ void osal_run(void);
 }
 #endif
 
-#endif // OSAL_TASK_H
+#endif /* OSAL_TASK_H */

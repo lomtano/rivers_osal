@@ -1,14 +1,3 @@
-/******************************************************************************
- * Copyright (C) 2024-2026 rivers. All rights reserved.
- *
- * @author JH
- *
- * @version V1.0 2023-12-03
- *
- * @note 1 tab == 4 spaces!
- *
- *****************************************************************************/
-
 #ifndef OSAL_EVENT_H
 #define OSAL_EVENT_H
 
@@ -20,40 +9,40 @@
 extern "C" {
 #endif
 
-typedef struct osal_event osal_event_t; // opaque event
+typedef struct osal_event osal_event_t; /* 不透明事件句柄 */
 
 /**
- * @brief Create an event object.
- * @param auto_reset True to auto-clear after a successful wait.
- * @return Event handle, or NULL when allocation fails.
+ * @brief 创建一个事件对象。
+ * @param auto_reset 为 true 时，在等待成功后自动清除事件。
+ * @return 成功返回事件句柄，失败返回 NULL。
  */
 osal_event_t *osal_event_create(bool auto_reset);
 
 /**
- * @brief Destroy an event object.
- * @param evt Event handle returned by osal_event_create().
+ * @brief 销毁一个事件对象。
+ * @param evt 由 osal_event_create() 返回的事件句柄。
  */
 void osal_event_delete(osal_event_t *evt);
 
 /**
- * @brief Set an event to the signaled state.
- * @param evt Event handle.
- * @return OSAL status code.
+ * @brief 将事件置为已触发状态。
+ * @param evt 事件句柄。
+ * @return OSAL 状态码。
  */
 osal_status_t osal_event_set(osal_event_t *evt);
 
 /**
- * @brief Clear an event back to the non-signaled state.
- * @param evt Event handle.
- * @return OSAL status code.
+ * @brief 将事件清除为未触发状态。
+ * @param evt 事件句柄。
+ * @return OSAL 状态码。
  */
 osal_status_t osal_event_clear(osal_event_t *evt);
 
 /**
- * @brief Wait until an event is signaled or a timeout expires.
- * @param evt Event handle.
- * @param timeout_ms Timeout in milliseconds.
- * @return OSAL_OK on success, OSAL_ERR_TIMEOUT on timeout.
+ * @brief 等待事件触发或超时。
+ * @param evt 事件句柄。
+ * @param timeout_ms 超时时间，单位为毫秒。
+ * @return 成功返回 OSAL_OK，超时返回 OSAL_ERR_TIMEOUT。
  */
 osal_status_t osal_event_wait(osal_event_t *evt, uint32_t timeout_ms);
 
@@ -61,4 +50,4 @@ osal_status_t osal_event_wait(osal_event_t *evt, uint32_t timeout_ms);
 }
 #endif
 
-#endif // OSAL_EVENT_H
+#endif /* OSAL_EVENT_H */

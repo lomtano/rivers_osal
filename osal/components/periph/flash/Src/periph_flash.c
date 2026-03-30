@@ -1,4 +1,4 @@
-#include "../Inc/periph_flash.h"
+﻿#include "../Inc/periph_flash.h"
 #include "osal_mem.h"
 #include <string.h>
 
@@ -7,7 +7,6 @@ struct periph_flash {
     void *context;
 };
 
-/* Allocate one flash component instance from the unified OSAL heap. */
 periph_flash_t *periph_flash_create(const periph_flash_bridge_t *bridge, void *context) {
     periph_flash_t *flash;
 
@@ -25,7 +24,6 @@ periph_flash_t *periph_flash_create(const periph_flash_bridge_t *bridge, void *c
     return flash;
 }
 
-/* Destroy one flash component instance. */
 void periph_flash_destroy(periph_flash_t *flash) {
     if (flash == NULL) {
         return;
@@ -33,7 +31,6 @@ void periph_flash_destroy(periph_flash_t *flash) {
     osal_mem_free(flash);
 }
 
-/* Forward flash unlock into the user-provided bridge callback. */
 osal_status_t periph_flash_unlock(periph_flash_t *flash) {
     if (flash == NULL || flash->bridge == NULL || flash->bridge->unlock == NULL) {
         return OSAL_ERR_PARAM;
@@ -41,7 +38,6 @@ osal_status_t periph_flash_unlock(periph_flash_t *flash) {
     return flash->bridge->unlock(flash->context);
 }
 
-/* Forward flash lock into the user-provided bridge callback. */
 osal_status_t periph_flash_lock(periph_flash_t *flash) {
     if (flash == NULL || flash->bridge == NULL || flash->bridge->lock == NULL) {
         return OSAL_ERR_PARAM;
@@ -49,7 +45,6 @@ osal_status_t periph_flash_lock(periph_flash_t *flash) {
     return flash->bridge->lock(flash->context);
 }
 
-/* Forward erase-range handling into the user-provided bridge callback. */
 osal_status_t periph_flash_erase(periph_flash_t *flash, uint32_t address, uint32_t length) {
     if (flash == NULL || flash->bridge == NULL || flash->bridge->erase == NULL || length == 0U) {
         return OSAL_ERR_PARAM;
@@ -57,7 +52,6 @@ osal_status_t periph_flash_erase(periph_flash_t *flash, uint32_t address, uint32
     return flash->bridge->erase(flash->context, address, length);
 }
 
-/* Read a flash range, either through the bridge or by direct memory mapping. */
 osal_status_t periph_flash_read(periph_flash_t *flash, uint32_t address, uint8_t *data, uint32_t length) {
     if (flash == NULL || data == NULL) {
         return OSAL_ERR_PARAM;
@@ -75,7 +69,6 @@ osal_status_t periph_flash_read(periph_flash_t *flash, uint32_t address, uint8_t
     return OSAL_OK;
 }
 
-/* Program one byte through the bridge. */
 osal_status_t periph_flash_write_u8(periph_flash_t *flash, uint32_t address, uint8_t value) {
     if (flash == NULL || flash->bridge == NULL || flash->bridge->write_u8 == NULL) {
         return OSAL_ERR_PARAM;
@@ -83,7 +76,6 @@ osal_status_t periph_flash_write_u8(periph_flash_t *flash, uint32_t address, uin
     return flash->bridge->write_u8(flash->context, address, value);
 }
 
-/* Program one halfword through the bridge. */
 osal_status_t periph_flash_write_u16(periph_flash_t *flash, uint32_t address, uint16_t value) {
     if (flash == NULL || flash->bridge == NULL || flash->bridge->write_u16 == NULL) {
         return OSAL_ERR_PARAM;
@@ -91,7 +83,6 @@ osal_status_t periph_flash_write_u16(periph_flash_t *flash, uint32_t address, ui
     return flash->bridge->write_u16(flash->context, address, value);
 }
 
-/* Program one word through the bridge. */
 osal_status_t periph_flash_write_u32(periph_flash_t *flash, uint32_t address, uint32_t value) {
     if (flash == NULL || flash->bridge == NULL || flash->bridge->write_u32 == NULL) {
         return OSAL_ERR_PARAM;
@@ -99,7 +90,6 @@ osal_status_t periph_flash_write_u32(periph_flash_t *flash, uint32_t address, ui
     return flash->bridge->write_u32(flash->context, address, value);
 }
 
-/* Program one doubleword through the bridge. */
 osal_status_t periph_flash_write_u64(periph_flash_t *flash, uint32_t address, uint64_t value) {
     if (flash == NULL || flash->bridge == NULL || flash->bridge->write_u64 == NULL) {
         return OSAL_ERR_PARAM;
@@ -107,7 +97,6 @@ osal_status_t periph_flash_write_u64(periph_flash_t *flash, uint32_t address, ui
     return flash->bridge->write_u64(flash->context, address, value);
 }
 
-/* Select the widest supported aligned write width for one program step. */
 static osal_status_t periph_flash_write_step(periph_flash_t *flash, uint32_t address, const uint8_t *data, uint32_t remaining, uint32_t *consumed) {
     uint64_t value64;
     uint32_t value32;
@@ -140,7 +129,6 @@ static osal_status_t periph_flash_write_step(periph_flash_t *flash, uint32_t add
     return OSAL_ERR_RESOURCE;
 }
 
-/* Program a byte buffer using the widest supported aligned write callback. */
 osal_status_t periph_flash_write(periph_flash_t *flash, uint32_t address, const uint8_t *data, uint32_t length) {
     osal_status_t status;
     uint32_t offset = 0U;

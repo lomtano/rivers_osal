@@ -1,14 +1,3 @@
-/******************************************************************************
- * Copyright (C) 2024-2026 rivers. All rights reserved.
- *
- * @author JH
- *
- * @version V1.0 2023-12-03
- *
- * @note 1 tab == 4 spaces!
- *
- *****************************************************************************/
-
 #ifndef OSAL_H
 #define OSAL_H
 
@@ -30,6 +19,18 @@ typedef enum {
     OSAL_RESERVED = 0x7FFFFFFF
 } osal_status_t;
 
+/**
+ * @brief 初始化 OSAL 系统层。
+ * @note 该接口会调用平台层初始化钩子，并自动同步当前 Tick 计数源配置。
+ */
+void osal_init(void);
+
+/**
+ * @brief 在周期性 Tick 中断里调用的 OSAL 通用中断入口。
+ * @note 推荐直接在 SysTick_Handler() 或其他系统时基中断中调用它。
+ */
+void osal_tick_handler(void);
+
 #include "osal_task.h"
 #include "osal_queue.h"
 #include "osal_mem.h"
@@ -43,4 +44,4 @@ typedef enum {
 }
 #endif
 
-#endif // OSAL_H
+#endif /* OSAL_H */

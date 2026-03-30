@@ -22,95 +22,95 @@ typedef struct {
 } periph_flash_bridge_t;
 
 /**
- * @brief Create a flash component instance from one bridge table.
- * @param bridge Bridge callbacks for the target MCU SDK.
- * @param context User context passed back into the bridge.
- * @return Flash component handle, or NULL on allocation failure.
+ * @brief 基于桥接函数表创建一个 Flash 组件实例。
+ * @param bridge 目标 MCU SDK 对应的桥接回调表。
+ * @param context 回传给桥接回调的用户上下文。
+ * @return 成功返回 Flash 组件句柄，失败返回 NULL。
  */
 periph_flash_t *periph_flash_create(const periph_flash_bridge_t *bridge, void *context);
 
 /**
- * @brief Destroy one flash component instance.
- * @param flash Flash component handle.
+ * @brief 销毁一个 Flash 组件实例。
+ * @param flash Flash 组件句柄。
  */
 void periph_flash_destroy(periph_flash_t *flash);
 
 /**
- * @brief Unlock internal flash programming.
- * @param flash Flash component handle.
- * @return OSAL status code.
+ * @brief 解锁内部 Flash 编程。
+ * @param flash Flash 组件句柄。
+ * @return OSAL 状态码。
  */
 osal_status_t periph_flash_unlock(periph_flash_t *flash);
 
 /**
- * @brief Lock internal flash programming.
- * @param flash Flash component handle.
- * @return OSAL status code.
+ * @brief 锁定内部 Flash 编程。
+ * @param flash Flash 组件句柄。
+ * @return OSAL 状态码。
  */
 osal_status_t periph_flash_lock(periph_flash_t *flash);
 
 /**
- * @brief Erase one flash address range.
- * @param flash Flash component handle.
- * @param address Start address to erase.
- * @param length Number of bytes covered by the erase request.
- * @return OSAL status code.
+ * @brief 擦除一段 Flash 地址范围。
+ * @param flash Flash 组件句柄。
+ * @param address 起始地址。
+ * @param length 擦除请求覆盖的字节数。
+ * @return OSAL 状态码。
  */
 osal_status_t periph_flash_erase(periph_flash_t *flash, uint32_t address, uint32_t length);
 
 /**
- * @brief Read a byte range from flash.
- * @param flash Flash component handle.
- * @param address Start address to read.
- * @param data Destination buffer.
- * @param length Number of bytes to read.
- * @return OSAL status code.
+ * @brief 从 Flash 读取一段字节区间。
+ * @param flash Flash 组件句柄。
+ * @param address 读取起始地址。
+ * @param data 目标缓冲区。
+ * @param length 要读取的字节数。
+ * @return OSAL 状态码。
  */
 osal_status_t periph_flash_read(periph_flash_t *flash, uint32_t address, uint8_t *data, uint32_t length);
 
 /**
- * @brief Program one byte into flash.
- * @param flash Flash component handle.
- * @param address Destination address.
- * @param value Byte value to program.
- * @return OSAL status code.
+ * @brief 向 Flash 写入一个字节。
+ * @param flash Flash 组件句柄。
+ * @param address 目标地址。
+ * @param value 要写入的字节值。
+ * @return OSAL 状态码。
  */
 osal_status_t periph_flash_write_u8(periph_flash_t *flash, uint32_t address, uint8_t value);
 
 /**
- * @brief Program one halfword into flash.
- * @param flash Flash component handle.
- * @param address Destination address.
- * @param value Halfword value to program.
- * @return OSAL status code.
+ * @brief 向 Flash 写入一个半字。
+ * @param flash Flash 组件句柄。
+ * @param address 目标地址。
+ * @param value 要写入的半字值。
+ * @return OSAL 状态码。
  */
 osal_status_t periph_flash_write_u16(periph_flash_t *flash, uint32_t address, uint16_t value);
 
 /**
- * @brief Program one word into flash.
- * @param flash Flash component handle.
- * @param address Destination address.
- * @param value Word value to program.
- * @return OSAL status code.
+ * @brief 向 Flash 写入一个字。
+ * @param flash Flash 组件句柄。
+ * @param address 目标地址。
+ * @param value 要写入的字值。
+ * @return OSAL 状态码。
  */
 osal_status_t periph_flash_write_u32(periph_flash_t *flash, uint32_t address, uint32_t value);
 
 /**
- * @brief Program one doubleword into flash.
- * @param flash Flash component handle.
- * @param address Destination address.
- * @param value Doubleword value to program.
- * @return OSAL status code.
+ * @brief 向 Flash 写入一个双字。
+ * @param flash Flash 组件句柄。
+ * @param address 目标地址。
+ * @param value 要写入的双字值。
+ * @return OSAL 状态码。
  */
 osal_status_t periph_flash_write_u64(periph_flash_t *flash, uint32_t address, uint64_t value);
 
 /**
- * @brief Program a byte buffer using the widest supported aligned write callback.
- * @param flash Flash component handle.
- * @param address Destination address.
- * @param data Source buffer.
- * @param length Number of bytes to program.
- * @return OSAL status code.
+ * @brief 使用当前支持的最宽对齐写入方式写入一段字节缓冲区。
+ * @param flash Flash 组件句柄。
+ * @param address 目标地址。
+ * @param data 源数据缓冲区。
+ * @param length 要写入的字节数。
+ * @return OSAL 状态码。
  */
 osal_status_t periph_flash_write(periph_flash_t *flash, uint32_t address, const uint8_t *data, uint32_t length);
 
@@ -118,4 +118,4 @@ osal_status_t periph_flash_write(periph_flash_t *flash, uint32_t address, const 
 }
 #endif
 
-#endif // PERIPH_FLASH_H
+#endif /* PERIPH_FLASH_H */

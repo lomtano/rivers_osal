@@ -1,13 +1,13 @@
-# OSAL
+# OSAL 中间件
 
-`osal` 是一套面向 32 位 MCU 的轻量裸机 OSAL 骨架。
+`middleware/osal` 是一套面向 32 位 MCU 的轻量裸机 OSAL 骨架。
 它希望具备接近 FreeRTOS 的可移植性，但保持更小的代码规模、更薄的平台适配面，
 并优先服务于“快速搭建任务逻辑框架”这件事。
 
 ## 目录结构
 
 ```text
-osal/
+middleware/osal/
 |-- system/
 |   |-- Inc/
 |   `-- Src/
@@ -89,6 +89,6 @@ while (1) {
 
 ## 文档
 
-- 移植步骤：`osal/PORTING_GUIDE.md`
-- 使用示例：`osal/USAGE_EXAMPLES.md`
-- 更新日志：`osal/CHANGELOG.md`
+- 移植步骤：`middleware/osal/PORTING_GUIDE.md`
+- 使用示例：`middleware/osal/USAGE_EXAMPLES.md`
+- 更新日志：`middleware/osal/CHANGELOG.md`

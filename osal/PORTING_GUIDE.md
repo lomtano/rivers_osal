@@ -1,47 +1,187 @@
-# OSAL 移植指南
+# OSAL 跨 MCU 最小移植模板
 
-本文说明如何把 `osal` 移植到另一套 32 位 MCU 工程中，例如 STM32、GD32、N32。
+本文只保留最小移植步骤，目标是让用户尽量少写代码，只负责把 OSAL 和目标 MCU 的 SDK 接起来。
 
-## 1. 复制目录
+## 1. 适用范围
 
-把整个 `osal/` 目录复制到目标工程中。
+这套 OSAL 的 `system` 层负责：
 
-最少通常保留：
+- 统一状态码
+- 协作式任务调度
+- 队列、事件、互斥量
+- 静态堆管理
+- 毫秒 Tick 维护
+- 微秒级延时和微秒运行时间换算
+- 软件定时器
+- 超时和计数回绕处理
 
-- `osal/system`
-- `osal/components`
+平台适配层只负责：
 
-如果你还想保留 STM32F4 参考示例，也一起复制：
+- 初始化底层外设或时基
+- 提供原始 Tick 计数源读接口
+- 提供中断开关接口
+- 挂接串口、Flash 等桥接函数
 
-- `osal/examples`
+也就是说，复杂逻辑应放在 `system`，`platform` 只做桥接，不放算法。
 
-## 2. 添加头文件路径
+## 2. 复制目录
 
-给工程加入以下头文件路径：
+至少复制下面两个目录：
 
-- `osal/system/Inc`
-- `osal/components/periph/usart/Inc`
-- `osal/components/periph/flash/Inc`
+- `Middleware/osal/system`
+- `Middleware/osal/components`
 
-如果还要编译 STM32F4 示例，再加入：
+如果要参考现成平台示例，再复制：
 
-- `osal/examples/stm32f4`
+- `Middleware/osal/examples`
 
-## 3. 添加源文件
+## 3. 工程需要加入的路径
 
-把以下源文件加入工程：
+最少加入这些头文件路径：
 
-- `osal/system/Src/*.c`
-- `osal/components/periph/usart/Src/*.c`
-- `osal/components/periph/flash/Src/*.c`
+- `Middleware/osal/system/Inc`
+- `Middleware/osal/components/periph/usart/Inc`
+- `Middleware/osal/components/periph/flash/Inc`
 
-示例文件按需加入：
+如果要使用示例平台层，再加入：
 
-- `osal/examples/stm32f4/*.c`
+- `Middleware/osal/examples/<your_platform>`
 
-## 4. 实现平台中断抽象
+## 4. 工程需要加入的源文件
 
-OSAL 系统层真正依赖的平台中断接口很少，只有下面四个：
+最少加入这些源文件：
+
+- `Middleware/osal/system/Src/*.c`
+- `Middleware/osal/components/periph/usart/Src/*.c`
+- `Middleware/osal/components/periph/flash/Src/*.c`
+
+如果要复用某个平台示例，再把对应 `examples` 目录下的 `.c` 一起加入。
+
+## 5. 主循环最小接入方式
+
+系统初始化阶段调用一次：
+
+```c
+#include "osal.h"
+
+int main(void)
+{
+    board_init();
+    osal_init();
+
+    while (1) {
+        osal_run();
+    }
+}
+```
+
+`osal_init()` 会调用平台层初始化钩子，并同步当前 Tick 计数源配置。
+
+## 6. 中断入口最小接入方式
+
+在系统周期 Tick 中断里调用：
+
+```c
+void SysTick_Handler(void)
+{
+    sdk_tick_handler();
+    osal_tick_handler();
+}
+```
+
+如果你的 MCU 不叫 `SysTick`，也没有关系，只要在你自己的周期性系统时基中断里调用 `osal_tick_handler()` 即可。
+
+`osal_tick_handler()` 只负责维护 OSAL 的粗粒度 Tick。  
+微秒级细分时间、毫秒换算、软件定时器最近到期判断，都在 `system` 层内部完成。
+
+## 7. 平台层必须实现的接口
+
+### 7.1 平台初始化钩子
+
+```c
+void osal_platform_init(void);
+```
+
+这里建议只做：
+
+- 挂接串口桥接
+- 挂接 Flash 桥接
+- 准备系统 Tick 计数源
+
+不要在这里放复杂计时算法。
+
+### 7.2 Tick 计数源桥接
+
+```c
+typedef struct {
+    uint32_t (*get_counter_clock_hz)(void);
+    uint32_t (*get_reload_value)(void);
+    uint32_t (*get_current_value)(void);
+    bool (*is_enabled)(void);
+    bool (*has_elapsed)(void);
+} osal_tick_source_t;
+
+const osal_tick_source_t *osal_platform_get_tick_source(void);
+```
+
+这组接口只需要返回原始硬件信息：
+
+- 计数器输入时钟频率
+- 周期重装值
+- 当前计数值
+- 当前是否使能
+- 是否已经发生过一次归零事件
+
+`system` 层会基于这些原始数据自动计算：
+
+- `osal_timer_delay_us()`
+- `osal_timer_delay_ms()`
+- `osal_timer_get_uptime_us()`
+- `osal_timer_get_tick()`
+- 软件定时器最近到期点
+- 回绕安全的超时比较
+
+用户不需要自己写这些换算逻辑。
+
+## 8. Cortex-M 上的推荐做法
+
+如果目标是 STM32、GD32、N32 这类 Cortex-M MCU，推荐直接用系统时基计数器作为 OSAL 的 Tick 源。
+
+平台层只需要把下面这些原始读接口接上：
+
+```c
+static uint32_t board_tick_get_clock_hz(void)
+{
+    return HAL_RCC_GetHCLKFreq();
+}
+
+static uint32_t board_tick_get_reload_value(void)
+{
+    return SysTick->LOAD + 1U;
+}
+
+static uint32_t board_tick_get_current_value(void)
+{
+    return SysTick->VAL;
+}
+
+static bool board_tick_is_enabled(void)
+{
+    return (SysTick->CTRL & SysTick_CTRL_ENABLE_Msk) != 0U;
+}
+
+static bool board_tick_has_elapsed(void)
+{
+    return (SysTick->CTRL & SysTick_CTRL_COUNTFLAG_Msk) != 0U;
+}
+```
+
+注意：这里展示的是 Cortex-M 示例，不是强制要求名字必须叫 `SysTick`。  
+如果别的 MCU SDK 对象名不同，只要把这几项原始能力映射出来即可。
+
+## 9. 中断接口也只需要做桥接
+
+OSAL 真正需要的平台中断接口很少：
 
 ```c
 uint32_t osal_irq_disable(void);
@@ -50,120 +190,43 @@ void osal_irq_restore(uint32_t prev_state);
 bool osal_irq_is_in_isr(void);
 ```
 
-这些函数应当放在平台适配层里，不要散落在应用代码里。
+平台层只需要把它们映射到本 MCU 的关中断、开中断和 ISR 状态判断接口。
 
-## 5. 接入 1us 中断源
+## 10. 串口组件最小桥接模板
 
-`osal_timer` 现在的使用方式和 `HAL_IncTick()` 很接近：  
-平台层只需要在固定 `1us` 周期的中断里调用一次 `osal_timer_inc_tick()`。
-
-```c
-void TIMx_IRQHandler(void) {
-    osal_timer_inc_tick();
-}
-```
-
-有了这一次调用后，OSAL 内部会自动维护：
-
-- 32 位微秒计数
-- 32 位毫秒 `tick`
-- 微秒忙等待延时
-- 软件定时器时间基准
-- 其它 OSAL 服务使用到的超时回绕判断
-
-你不再需要自己挂额外的计时回调函数。
-
-## 6. STM32F4 模板适配方式
-
-`osal/examples/stm32f4/osal_platform_stm32f4.h` 已经整理成模板骨架。
-
-如果你使用通用 `TIMx`：
-
-1. 修改这些宏，让它们匹配你的定时器资源：
-   `OSAL_PLATFORM_TICK_TIM_INSTANCE`
-   `OSAL_PLATFORM_TICK_TIM_IRQn`
-   `OSAL_PLATFORM_TICK_TIM_CLK_ENABLE()`
-   `OSAL_PLATFORM_TICK_TIM_APB_BUS`
-2. 启动阶段调用 `osal_platform_tick_start()`
-3. 在对应的 `TIMx_IRQHandler()` 里调用 `osal_platform_tick_irq_handler()`
-
-如果你使用 `SysTick`：
-
-1. 自己保证 `SysTick` 的中断周期就是 `1us`
-2. 在 `SysTick_Handler()` 中调用 `osal_platform_systick_handler()`
-
-一般来说，裸机项目更推荐使用独立通用定时器驱动 OSAL tick，避免把 `SysTick` 压到过高频率。
-
-## 7. 可选：替换默认 OSAL 静态堆
-
-如果你不想使用 `osal_mem` 内部自带的默认静态大数组，可以在启动早期换成你自己的静态缓冲区：
+串口组件只要求底层提供“发送单字节”能力：
 
 ```c
-static uint8_t g_osal_heap[8192];
-
-void board_osal_heap_init(void) {
-    osal_mem_init(g_osal_heap, sizeof(g_osal_heap));
-}
-```
-
-这个缓冲区依然是静态内存，不是系统 `heap`。  
-请在创建任务、队列、互斥量、事件、软件定时器和组件之前完成初始化。
-
-## 8. 主循环
-
-应用主循环尽量保持最简：
-
-```c
-while (1) {
-    osal_run();
-}
-```
-
-`osal_run()` 内部已经会处理软件定时器轮询。
-
-## 9. USART 组件移植
-
-`USART` 组件位于：
-
-- `osal/components/periph/usart`
-
-为了兼容之前代码，当前组件对外仍然使用 `periph_uart_*` 这一组 API 名称。
-
-平台层只需要提供一个“发送单字节”的桥接函数：
-
-```c
-static osal_status_t board_uart_write_byte(void *context, uint8_t byte) {
+static osal_status_t board_uart_write_byte(void *context, uint8_t byte)
+{
     board_uart_handle_t *uart = (board_uart_handle_t *)context;
     return (sdk_uart_send_byte(uart, byte) == SDK_OK) ? OSAL_OK : OSAL_ERROR;
 }
 ```
 
-然后挂载桥接：
+然后桥接：
 
 ```c
-static const periph_uart_bridge_t uart_bridge = {
+static const periph_uart_bridge_t s_uart_bridge = {
     .write_byte = board_uart_write_byte
 };
 
-periph_uart_t *uart = periph_uart_create(&uart_bridge, &board_uart);
+periph_uart_t *uart = periph_uart_create(&s_uart_bridge, &board_uart);
 periph_uart_bind_console(uart);
 ```
 
-若要重定向 `printf`，可直接写：
+如果需要 `printf` 重定向：
 
 ```c
-int fputc(int ch, FILE *f) {
+int fputc(int ch, FILE *f)
+{
     return periph_uart_fputc(ch, f);
 }
 ```
 
-## 10. Flash 组件移植
+## 11. Flash 组件最小桥接模板
 
-`Flash` 组件位于：
-
-- `osal/components/periph/flash`
-
-桥接层可按目标 MCU 能力实现以下任意组合：
+Flash 组件根据目标 MCU 能力，选择实现以下任意组合：
 
 - `unlock`
 - `lock`
@@ -174,41 +237,46 @@ int fputc(int ch, FILE *f) {
 - `write_u32`
 - `write_u64`
 
-不同 MCU 支持的擦写粒度、可写宽度本来就不同，这属于正常差异。  
-上层始终调用 `periph_flash_write()`，组件内部会根据地址对齐和已安装的函数指针，自动选择当前可用的最宽合法写法。
+上层统一走 `periph_flash_write()`，组件内部会根据地址对齐和桥接能力自动选择当前能用的最宽写法。
 
-## 11. 队列移植说明
+## 12. 队列成员类型说明
 
-`osal_queue` 是一个泛型固定成员大小队列，思路和小型化的 FreeRTOS 队列类似，  
-它并不只支持 `uint8_t`。
+`osal_queue` 是固定成员大小的泛型消息队列，不只支持 `uint8_t`。
+
+可以直接放：
+
+- 结构体
+- 指针
+- 定长数组
 
 示例：
 
-- 指针队列：`item_size = sizeof(my_msg_t *)`
-- 结构体队列：`item_size = sizeof(my_msg_t)`
-- 定长数组队列：
-
 ```c
-typedef uint8_t can_frame_t[8];
-osal_queue_t *q = osal_queue_create(16U, sizeof(can_frame_t));
+typedef struct {
+    uint16_t id;
+    uint8_t data[8];
+} app_msg_t;
+
+osal_queue_t *q1 = osal_queue_create(8U, sizeof(app_msg_t));
+osal_queue_t *q2 = osal_queue_create(8U, sizeof(app_msg_t *));
 ```
 
-队列内部每次按 `item_size` 拷贝消息，所以结构体、指针、数组本身都可以作为队列成员。
-
-如果你希望 MCU 工程完全避免动态对象申请，建议优先使用：
+如果完全不想让消息缓存来自 OSAL 堆，推荐使用：
 
 ```c
 osal_queue_create_static(buffer, length, item_size);
 ```
 
-这样消息缓存区完全由你自己的静态数组提供。
+## 13. 推荐验证顺序
 
-## 12. 建议验证顺序
+建议按下面顺序排查，最省时间：
 
-1. 先验证 `osal_irq_*`
-2. 再验证 `osal_timer_get_tick()` 是否正常递增
-3. 再验证一个最小任务能否在 `osal_run()` 下正常运行
-4. 再验证 USART 输出
-5. 再验证软件定时器回调
-6. 再验证队列收发
-7. 最后验证 Flash 组件
+1. 先确认 `osal_tick_handler()` 确实在周期中断里执行
+2. 再确认 `osal_timer_get_tick()` 持续递增
+3. 再验证一个最小任务能否在 `osal_run()` 下工作
+4. 再接入 `osal_task_sleep()`
+5. 再验证软件定时器
+6. 再验证串口输出
+7. 最后验证消息队列和 Flash 组件
+
+如果前三步不通，就不要继续往上层追。

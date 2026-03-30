@@ -16,62 +16,62 @@ typedef struct {
 } periph_uart_bridge_t;
 
 /**
- * @brief Create a UART component instance from one byte-write bridge.
- * @param bridge Bridge callbacks for the target MCU SDK.
- * @param context User context passed back into the bridge.
- * @return UART component handle, or NULL on allocation failure.
+ * @brief 基于单字节发送桥接函数创建一个 USART 组件实例。
+ * @param bridge 目标 MCU SDK 对应的桥接回调表。
+ * @param context 回传给桥接回调的用户上下文。
+ * @return 成功返回 USART 组件句柄，失败返回 NULL。
  */
 periph_uart_t *periph_uart_create(const periph_uart_bridge_t *bridge, void *context);
 
 /**
- * @brief Destroy one UART component instance.
- * @param uart UART component handle.
+ * @brief 销毁一个 USART 组件实例。
+ * @param uart USART 组件句柄。
  */
 void periph_uart_destroy(periph_uart_t *uart);
 
 /**
- * @brief Send one byte through the UART bridge.
- * @param uart UART component handle.
- * @param byte Byte to send.
- * @return OSAL status code.
+ * @brief 通过桥接函数发送一个字节。
+ * @param uart USART 组件句柄。
+ * @param byte 要发送的字节。
+ * @return OSAL 状态码。
  */
 osal_status_t periph_uart_write_byte(periph_uart_t *uart, uint8_t byte);
 
 /**
- * @brief Send a byte buffer through the UART bridge.
- * @param uart UART component handle.
- * @param data Source buffer.
- * @param length Number of bytes to send.
- * @return OSAL status code.
+ * @brief 通过桥接函数发送一段字节缓冲区。
+ * @param uart USART 组件句柄。
+ * @param data 源数据缓冲区。
+ * @param length 要发送的字节数。
+ * @return OSAL 状态码。
  */
 osal_status_t periph_uart_write(periph_uart_t *uart, const uint8_t *data, uint32_t length);
 
 /**
- * @brief Send a zero-terminated string through the UART bridge.
- * @param uart UART component handle.
- * @param str String to send.
- * @return OSAL status code.
+ * @brief 通过桥接函数发送一个以零结尾的字符串。
+ * @param uart USART 组件句柄。
+ * @param str 要发送的字符串。
+ * @return OSAL 状态码。
  */
 osal_status_t periph_uart_write_string(periph_uart_t *uart, const char *str);
 
 /**
- * @brief Register one UART component as the stdio console backend.
- * @param uart UART component handle.
- * @return OSAL status code.
+ * @brief 将一个 USART 组件注册为标准输出控制台后端。
+ * @param uart USART 组件句柄。
+ * @return OSAL 状态码。
  */
 osal_status_t periph_uart_bind_console(periph_uart_t *uart);
 
 /**
- * @brief Get the currently bound stdio console backend.
- * @return UART component handle, or NULL when no console is registered.
+ * @brief 获取当前绑定的标准输出控制台后端。
+ * @return 已绑定的 USART 组件句柄，未绑定时返回 NULL。
  */
 periph_uart_t *periph_uart_get_console(void);
 
 /**
- * @brief Helper for retargeting fputc to the bound UART console.
- * @param ch Character to output.
- * @param f Standard C stream parameter kept for fputc compatibility.
- * @return ch on success, EOF on error.
+ * @brief 用于将 fputc 重定向到当前绑定的 USART 控制台。
+ * @param ch 要输出的字符。
+ * @param f 为兼容 fputc 保留的标准流参数。
+ * @return 成功时返回 ch，失败时返回 EOF。
  */
 int periph_uart_fputc(int ch, FILE *f);
 
@@ -79,4 +79,4 @@ int periph_uart_fputc(int ch, FILE *f);
 }
 #endif
 
-#endif // PERIPH_UART_H
+#endif /* PERIPH_UART_H */

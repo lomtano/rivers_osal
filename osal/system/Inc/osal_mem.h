@@ -1,14 +1,3 @@
-/******************************************************************************
- * Copyright (C) 2024-2026 rivers. All rights reserved.
- *
- * @author JH
- *
- * @version V1.0 2023-12-03
- *
- * @note 1 tab == 4 spaces!
- *
- *****************************************************************************/
-
 #ifndef OSAL_MEM_H
 #define OSAL_MEM_H
 
@@ -19,65 +8,65 @@
 extern "C" {
 #endif
 
-typedef struct osal_mempool osal_mempool_t; // opaque
+typedef struct osal_mempool osal_mempool_t; /* 不透明内存池句柄 */
 
 #ifndef OSAL_HEAP_SIZE
 #define OSAL_HEAP_SIZE 4096U
 #endif
 
 /**
- * @brief Initialize the unified OSAL heap.
- * @param heap_buffer Optional user-provided heap buffer, NULL to use internal storage.
- * @param heap_size Size of heap_buffer in bytes, ignored when heap_buffer is NULL.
+ * @brief 初始化统一的 OSAL 静态堆。
+ * @param heap_buffer 用户自定义堆缓冲区，传 NULL 时使用内部静态数组。
+ * @param heap_size heap_buffer 的大小，单位为字节；当 heap_buffer 为 NULL 时忽略。
  */
 void osal_mem_init(void *heap_buffer, uint32_t heap_size);
 
 /**
- * @brief Allocate a block from the unified OSAL heap.
- * @param size Requested payload size in bytes.
- * @return Pointer to allocated memory, or NULL on failure.
+ * @brief 从统一的 OSAL 静态堆中申请一块内存。
+ * @param size 申请大小，单位为字节。
+ * @return 成功返回内存指针，失败返回 NULL。
  */
 void *osal_mem_alloc(uint32_t size);
 
 /**
- * @brief Return a block to the unified OSAL heap.
- * @param ptr Pointer returned by osal_mem_alloc().
+ * @brief 将一块内存归还到统一的 OSAL 静态堆。
+ * @param ptr 由 osal_mem_alloc() 返回的指针。
  */
 void osal_mem_free(void *ptr);
 
 /**
- * @brief Query the currently available free heap space.
- * @return Total size of free blocks in bytes.
+ * @brief 查询当前可用的空闲堆空间。
+ * @return 当前所有空闲块总大小，单位为字节。
  */
 uint32_t osal_mem_get_free_size(void);
 
-// pool_buffer must be at least max(block_size, sizeof(void *)) * block_count bytes
+/* pool_buffer 至少需要 max(block_size, sizeof(void *)) * block_count 字节。 */
 /**
- * @brief Create a fixed-size memory pool on top of a user buffer.
- * @param pool_buffer Raw backing buffer for all pool blocks.
- * @param block_size Size of each pool block.
- * @param block_count Number of blocks in the pool.
- * @return Mempool handle, or NULL on failure.
+ * @brief 基于用户缓冲区创建一个定长内存池。
+ * @param pool_buffer 内存池底层缓冲区。
+ * @param block_size 每个块的大小。
+ * @param block_count 块数量。
+ * @return 成功返回内存池句柄，失败返回 NULL。
  */
 osal_mempool_t *osal_mempool_create(void *pool_buffer, uint32_t block_size, uint32_t block_count);
 
 /**
- * @brief Destroy a memory pool control block.
- * @param mp Mempool handle.
+ * @brief 销毁一个内存池控制块。
+ * @param mp 内存池句柄。
  */
 void osal_mempool_delete(osal_mempool_t *mp);
 
 /**
- * @brief Allocate one block from a memory pool.
- * @param mp Mempool handle.
- * @return Pool block pointer, or NULL when empty.
+ * @brief 从内存池中申请一个块。
+ * @param mp 内存池句柄。
+ * @return 成功返回块指针，空池时返回 NULL。
  */
 void *osal_mempool_alloc(osal_mempool_t *mp);
 
 /**
- * @brief Return one block back to a memory pool.
- * @param mp Mempool handle.
- * @param ptr Block pointer originally returned by osal_mempool_alloc().
+ * @brief 将一个块归还到内存池。
+ * @param mp 内存池句柄。
+ * @param ptr 由 osal_mempool_alloc() 返回的块指针。
  */
 void osal_mempool_free(osal_mempool_t *mp, void *ptr);
 
@@ -85,4 +74,4 @@ void osal_mempool_free(osal_mempool_t *mp, void *ptr);
 }
 #endif
 
-#endif // OSAL_MEM_H
+#endif /* OSAL_MEM_H */

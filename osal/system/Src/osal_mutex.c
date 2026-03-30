@@ -1,11 +1,4 @@
-/*
- * osal_mutex.c
- * Simple mutual exclusion primitive.
- * - Busy-wait lock/unlock with timeout
- * - Not suitable for preemptive RTOS, but fine for cooperative OSAL
- */
-
-#include "../Inc/osal_mutex.h"
+﻿#include "../Inc/osal_mutex.h"
 #include "../Inc/osal_irq.h"
 #include "../Inc/osal_mem.h"
 #include "../Inc/osal_task.h"
@@ -18,7 +11,6 @@ struct osal_mutex {
 
 static osal_mutex_t *s_mutex_list = NULL;
 
-/* Allocate a mutex control block from the unified OSAL heap. */
 osal_mutex_t *osal_mutex_create(void) {
     osal_mutex_t *mutex = (osal_mutex_t *)osal_mem_alloc((uint32_t)sizeof(osal_mutex_t));
     if (mutex == NULL) return NULL;
@@ -28,7 +20,6 @@ osal_mutex_t *osal_mutex_create(void) {
     return mutex;
 }
 
-/* Remove a mutex from the internal list and free it. */
 void osal_mutex_delete(osal_mutex_t *mutex) {
     osal_mutex_t *prev = NULL;
     osal_mutex_t *current = s_mutex_list;
@@ -49,7 +40,6 @@ void osal_mutex_delete(osal_mutex_t *mutex) {
     }
 }
 
-/* Lock a cooperative mutex with timeout and critical-section protection. */
 osal_status_t osal_mutex_lock(osal_mutex_t *mutex, uint32_t timeout_ms) {
     uint32_t irq_state;
 
@@ -71,7 +61,6 @@ osal_status_t osal_mutex_lock(osal_mutex_t *mutex, uint32_t timeout_ms) {
     }
 }
 
-/* Unlock a cooperative mutex. */
 osal_status_t osal_mutex_unlock(osal_mutex_t *mutex) {
     uint32_t irq_state;
 

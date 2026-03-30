@@ -2,7 +2,7 @@
 
 本文对应的参考示例文件是：
 
-- `osal/examples/stm32f4/osal_integration_stm32f4.c`
+- `middleware/osal/examples/stm32f4/osal_integration_stm32f4.c`
 
 ## 1. 两个无阻塞点灯任务
 
@@ -63,7 +63,7 @@ while (1) {
 
 `USART` 组件位于：
 
-- `osal/components/periph/usart`
+- `middleware/osal/components/periph/usart`
 
 平台层只需要提供目标 SDK 的“发送单字节”函数桥接。挂载成功后，
 `printf` 重定向可以直接写成：
@@ -80,7 +80,7 @@ int fputc(int ch, FILE *f) {
 
 `Flash` 组件位于：
 
-- `osal/components/periph/flash`
+- `middleware/osal/components/periph/flash`
 
 典型调用流程如下：
 

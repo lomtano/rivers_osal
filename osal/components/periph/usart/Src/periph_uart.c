@@ -1,4 +1,4 @@
-#include "../Inc/periph_uart.h"
+﻿#include "../Inc/periph_uart.h"
 #include "osal_mem.h"
 
 struct periph_uart {
@@ -8,7 +8,6 @@ struct periph_uart {
 
 static periph_uart_t *s_console_uart = NULL;
 
-/* Allocate one UART component instance from the unified OSAL heap. */
 periph_uart_t *periph_uart_create(const periph_uart_bridge_t *bridge, void *context) {
     periph_uart_t *uart;
 
@@ -26,7 +25,6 @@ periph_uart_t *periph_uart_create(const periph_uart_bridge_t *bridge, void *cont
     return uart;
 }
 
-/* Destroy one UART component instance and clear global console binding if needed. */
 void periph_uart_destroy(periph_uart_t *uart) {
     if (uart == NULL) {
         return;
@@ -37,7 +35,6 @@ void periph_uart_destroy(periph_uart_t *uart) {
     osal_mem_free(uart);
 }
 
-/* Forward one byte into the user-provided bridge callback. */
 osal_status_t periph_uart_write_byte(periph_uart_t *uart, uint8_t byte) {
     if (uart == NULL || uart->bridge == NULL || uart->bridge->write_byte == NULL) {
         return OSAL_ERR_PARAM;
@@ -45,7 +42,6 @@ osal_status_t periph_uart_write_byte(periph_uart_t *uart, uint8_t byte) {
     return uart->bridge->write_byte(uart->context, byte);
 }
 
-/* Send a raw byte buffer using repeated byte writes. */
 osal_status_t periph_uart_write(periph_uart_t *uart, const uint8_t *data, uint32_t length) {
     osal_status_t status;
 
@@ -63,7 +59,6 @@ osal_status_t periph_uart_write(periph_uart_t *uart, const uint8_t *data, uint32
     return OSAL_OK;
 }
 
-/* Send a zero-terminated string using the generic buffer writer. */
 osal_status_t periph_uart_write_string(periph_uart_t *uart, const char *str) {
     const char *cursor;
 
@@ -83,7 +78,6 @@ osal_status_t periph_uart_write_string(periph_uart_t *uart, const char *str) {
     return OSAL_OK;
 }
 
-/* Install one UART component as the default stdio console sink. */
 osal_status_t periph_uart_bind_console(periph_uart_t *uart) {
     if (uart == NULL) {
         return OSAL_ERR_PARAM;
@@ -92,12 +86,10 @@ osal_status_t periph_uart_bind_console(periph_uart_t *uart) {
     return OSAL_OK;
 }
 
-/* Return the current console UART binding. */
 periph_uart_t *periph_uart_get_console(void) {
     return s_console_uart;
 }
 
-/* fputc-compatible helper that writes through the bound UART console. */
 int periph_uart_fputc(int ch, FILE *f) {
     (void)f;
 

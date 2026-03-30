@@ -1,14 +1,3 @@
-/******************************************************************************
- * Copyright (C) 2024-2026 rivers. All rights reserved.
- *
- * @author JH
- *
- * @version V1.0 2023-12-03
- *
- * @note 1 tab == 4 spaces!
- *
- *****************************************************************************/
-
 #ifndef OSAL_TIMER_H
 #define OSAL_TIMER_H
 
@@ -23,72 +12,78 @@ extern "C" {
 #define OSAL_TIMER_MAX 16
 #endif
 
-typedef void (*osal_timer_callback_t)(void *arg);
+/**
+ * @brief 回退模式下的默认 OSAL Tick 周期，单位为微秒。
+ * @note 当平台层没有提供硬件 Tick 计数源时，OSAL 会使用这个默认周期。
+ */
+#ifndef OSAL_TICK_PERIOD_US
+#define OSAL_TICK_PERIOD_US 1000U
+#endif
 
-typedef struct osal_timer osal_timer_t; // opaque timer object
+typedef void (*osal_timer_callback_t)(void *arg);
+typedef struct osal_timer osal_timer_t;
 
 /**
- * @brief Read OSAL uptime in microseconds.
- * @return 32-bit wraparound microsecond tick.
+ * @brief 获取 OSAL 运行时间的微秒计数值。
+ * @return 32 位回绕微秒计数。
  */
 uint32_t osal_timer_get_uptime_us(void);
 
 /**
- * @brief Read OSAL uptime in milliseconds.
- * @return 32-bit wraparound millisecond tick derived from the microsecond source.
+ * @brief 获取 OSAL 运行时间的毫秒计数值。
+ * @return 32 位回绕毫秒计数。
  */
 uint32_t osal_timer_get_uptime_ms(void);
 
 /**
- * @brief Read the HAL-style millisecond system tick.
- * @return 32-bit wraparound millisecond tick.
+ * @brief 获取 HAL 风格的毫秒 Tick。
+ * @return 32 位回绕毫秒 Tick。
  */
 uint32_t osal_timer_get_tick(void);
 
 /**
- * @brief Busy-wait for the requested microseconds.
- * @param us Delay duration in microseconds.
+ * @brief 忙等待指定的微秒数。
+ * @param us 延时时长，单位为微秒。
  */
 void osal_timer_delay_us(uint32_t us);
 
 /**
- * @brief Increment the internal OSAL tick by 1 microsecond.
- * @note Call this from a fixed 1us periodic timer ISR.
+ * @brief 忙等待指定的毫秒数。
+ * @param ms 延时时长，单位为毫秒。
  */
-void osal_timer_inc_tick(void);
+void osal_timer_delay_ms(uint32_t ms);
 
-// software timer api
 /**
- * @brief Create a software timer.
- * @param timeout_us Timer period or one-shot timeout in microseconds.
- * @param periodic True for periodic mode, false for one-shot mode.
- * @param cb Callback invoked when the timer expires.
- * @param arg User argument passed to the callback.
- * @return Timer ID, or -1 on failure.
+ * @brief 创建一个软件定时器。
+ * @param timeout_us 定时器周期或单次超时时间，单位为微秒。
+ * @param periodic true 表示周期定时器，false 表示单次定时器。
+ * @param cb 定时到期后的回调函数。
+ * @param arg 传递给回调函数的用户参数。
+ * @return 成功返回定时器 ID，失败返回 -1。
  */
 int osal_timer_create(uint32_t timeout_us, bool periodic, osal_timer_callback_t cb, void *arg);
 
 /**
- * @brief Start a software timer.
- * @param timer_id Timer ID returned by osal_timer_create().
- * @return True on success.
+ * @brief 启动一个软件定时器。
+ * @param timer_id 定时器 ID。
+ * @return 启动成功返回 true。
  */
 bool osal_timer_start(int timer_id);
 
 /**
- * @brief Stop a software timer.
- * @param timer_id Timer ID.
+ * @brief 停止一个软件定时器。
+ * @param timer_id 定时器 ID。
  */
 void osal_timer_stop(int timer_id);
 
 /**
- * @brief Delete a software timer.
- * @param timer_id Timer ID.
+ * @brief 删除一个软件定时器。
+ * @param timer_id 定时器 ID。
  */
 void osal_timer_delete(int timer_id);
 
 /**
- * @brief Poll all software timers and fire expired callbacks.
+ * @brief 轮询软件定时器并执行已到期的回调。
  */
 void osal_timer_poll(void);
 
@@ -96,4 +91,4 @@ void osal_timer_poll(void);
 }
 #endif
 
-#endif // OSAL_TIMER_H
+#endif /* OSAL_TIMER_H */

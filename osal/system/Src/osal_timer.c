@@ -1,14 +1,16 @@
 /*
  * osal_timer.c
- * Fixed 1us system tick plus software timer facility.
- * - The platform only needs to call osal_timer_inc_tick() from a 1us ISR
- * - Millisecond tick is accumulated internally with HAL-style wraparound
- * - Software timers use a nearest-expiry shortcut to avoid full scans when idle
+ * OSAL 定时器子系统。
+ * - 周期性 Tick 中断只做时间累加
+ * - 硬件细分计数读取与周期换算统一放在 system 层
+ * - 软件定时器采用“最近到期时间”优化，未到最近事件前不会全表扫描
  */
 
 #include "../Inc/osal_timer.h"
 #include "../Inc/osal_irq.h"
 #include "../Inc/osal_mem.h"
+#include "../Inc/osal_platform.h"
+#include "../Inc/osal.h"
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -29,7 +31,14 @@ static struct osal_timer_entry *s_timers[OSAL_TIMER_MAX];
 static bool s_next_expiry_valid = false;
 static uint64_t s_next_expiry_us = 0U;
 
-/* Accumulate elapsed microseconds into the public 32-bit and private 64-bit clocks. */
+static const osal_tick_source_t *s_tick_source = NULL;
+static bool s_tick_source_ready = false;
+static uint32_t s_tick_counter_hz = 0U;
+static uint32_t s_tick_reload_value = 0U;
+static uint32_t s_tick_period_ticks = 0U;
+static uint32_t s_tick_period_us = OSAL_TICK_PERIOD_US;
+
+/* 将一段微秒增量累计到公开时基和内部高精度时基中。 */
 static void osal_timer_accumulate_us(uint32_t delta_us) {
     uint32_t total_us;
 
@@ -40,7 +49,81 @@ static void osal_timer_accumulate_us(uint32_t delta_us) {
     s_ms_remainder_us = (total_us % 1000U);
 }
 
-/* Recalculate the nearest active timer expiry to speed up idle polls. */
+/* 根据平台层提供的底层计数源，同步当前 Tick 周期和细分参数。 */
+static void osal_timer_sync_tick_source(void) {
+    const osal_tick_source_t *source = osal_platform_get_tick_source();
+    uint32_t counter_hz;
+    uint32_t reload_value;
+    uint32_t period_ticks;
+    uint32_t period_us;
+
+    s_tick_source_ready = false;
+    s_tick_source = NULL;
+    s_tick_counter_hz = 0U;
+    s_tick_reload_value = 0U;
+    s_tick_period_ticks = 0U;
+    s_tick_period_us = OSAL_TICK_PERIOD_US;
+
+    if ((source == NULL) ||
+        (source->get_counter_clock_hz == NULL) ||
+        (source->get_reload_value == NULL) ||
+        (source->get_current_value == NULL) ||
+        (source->is_enabled == NULL) ||
+        (source->has_elapsed == NULL)) {
+        return;
+    }
+
+    counter_hz = source->get_counter_clock_hz();
+    reload_value = source->get_reload_value();
+    period_ticks = reload_value + 1U;
+
+    if ((counter_hz == 0U) || (period_ticks == 0U)) {
+        return;
+    }
+
+    period_us = (uint32_t)((((uint64_t)period_ticks) * 1000000ULL + ((uint64_t)counter_hz / 2ULL)) /
+                           (uint64_t)counter_hz);
+    if (period_us == 0U) {
+        period_us = 1U;
+    }
+
+    s_tick_source = source;
+    s_tick_counter_hz = counter_hz;
+    s_tick_reload_value = reload_value;
+    s_tick_period_ticks = period_ticks;
+    s_tick_period_us = period_us;
+    s_tick_source_ready = true;
+}
+
+/* 读取当前 Tick 周期内已经过去的附加微秒数。 */
+static uint32_t osal_timer_get_subtick_us_locked(void) {
+    uint32_t current_before;
+    uint32_t current_after;
+    uint64_t elapsed_ticks;
+    bool elapsed_flag;
+
+    if (!s_tick_source_ready || (s_tick_source == NULL)) {
+        return 0U;
+    }
+
+    if (!s_tick_source->is_enabled()) {
+        return 0U;
+    }
+
+    current_before = s_tick_source->get_current_value();
+    elapsed_flag = s_tick_source->has_elapsed();
+    current_after = s_tick_source->get_current_value();
+
+    if (elapsed_flag) {
+        elapsed_ticks = (uint64_t)s_tick_period_ticks + (uint64_t)s_tick_reload_value - (uint64_t)current_after;
+    } else {
+        elapsed_ticks = (uint64_t)s_tick_reload_value - (uint64_t)current_before;
+    }
+
+    return (uint32_t)((elapsed_ticks * 1000000ULL) / (uint64_t)s_tick_counter_hz);
+}
+
+/* 重新计算当前所有软件定时器里最近一次到期时间。 */
 static void osal_timer_refresh_next_expiry(void) {
     bool found = false;
     uint64_t earliest = 0U;
@@ -63,34 +146,52 @@ static void osal_timer_refresh_next_expiry(void) {
     s_next_expiry_us = earliest;
 }
 
-/* Read the internal 64-bit uptime with interrupt protection on 32-bit MCUs. */
+/* 在 32 位 MCU 上以关中断方式安全读取 64 位微秒计数。 */
 static uint64_t osal_timer_get_uptime_us64(void) {
     uint32_t irq_state;
     uint64_t now_us;
+    uint32_t extra_us;
 
     irq_state = osal_irq_disable();
     now_us = s_uptime_us64;
+    extra_us = osal_timer_get_subtick_us_locked();
     osal_irq_restore(irq_state);
-    return now_us;
+    return now_us + (uint64_t)extra_us;
 }
 
-/* Increment the internal microsecond counter by one 1us tick. */
-void osal_timer_inc_tick(void) {
-    osal_timer_accumulate_us(1U);
+/* 初始化 OSAL 系统层。 */
+void osal_init(void) {
+    osal_platform_init();
+    osal_timer_sync_tick_source();
 }
 
-/* Read the active 32-bit microsecond uptime counter. */
+/* 在周期性 Tick 中断里调用的 OSAL 通用入口。 */
+void osal_tick_handler(void) {
+    if (!s_tick_source_ready) {
+        osal_timer_sync_tick_source();
+    }
+
+    osal_timer_accumulate_us(s_tick_period_us);
+}
+
+/* 获取当前 32 位微秒运行时间。 */
 uint32_t osal_timer_get_uptime_us(void) {
     uint32_t irq_state;
     uint32_t now_us;
+    uint32_t extra_us;
+
+    if (!s_tick_source_ready) {
+        osal_timer_sync_tick_source();
+    }
 
     irq_state = osal_irq_disable();
     now_us = s_uptime_us32;
+    extra_us = osal_timer_get_subtick_us_locked();
     osal_irq_restore(irq_state);
-    return now_us;
+    return now_us + extra_us;
 }
 
-/* Read the internal millisecond uptime counter. */
+/* 获取当前 32 位毫秒运行时间。 */
 uint32_t osal_timer_get_uptime_ms(void) {
     uint32_t irq_state;
     uint32_t now_ms;
@@ -101,12 +202,12 @@ uint32_t osal_timer_get_uptime_ms(void) {
     return now_ms;
 }
 
-/* Return a HAL-style millisecond tick value. */
+/* 返回 HAL 风格的毫秒 Tick。 */
 uint32_t osal_timer_get_tick(void) {
     return osal_timer_get_uptime_ms();
 }
 
-/* Busy-wait until the requested microsecond span has elapsed. */
+/* 以忙等待方式延时指定微秒数。 */
 void osal_timer_delay_us(uint32_t us) {
     uint32_t start = osal_timer_get_uptime_us();
 
@@ -114,7 +215,15 @@ void osal_timer_delay_us(uint32_t us) {
     }
 }
 
-/* Allocate one software timer slot and backing control block. */
+/* 以忙等待方式延时指定毫秒数。 */
+void osal_timer_delay_ms(uint32_t ms) {
+    uint32_t start = osal_timer_get_tick();
+
+    while ((uint32_t)(osal_timer_get_tick() - start) < ms) {
+    }
+}
+
+/* 从统一 OSAL 堆中申请一个软件定时器控制块。 */
 int osal_timer_create(uint32_t timeout_us, bool periodic, osal_timer_callback_t cb, void *arg) {
     uint32_t irq_state;
     int i;
@@ -122,7 +231,8 @@ int osal_timer_create(uint32_t timeout_us, bool periodic, osal_timer_callback_t 
     irq_state = osal_irq_disable();
     for (i = 0; i < OSAL_TIMER_MAX; ++i) {
         if (s_timers[i] == NULL) {
-            struct osal_timer_entry *entry = (struct osal_timer_entry *)osal_mem_alloc((uint32_t)sizeof(struct osal_timer_entry));
+            struct osal_timer_entry *entry =
+                (struct osal_timer_entry *)osal_mem_alloc((uint32_t)sizeof(struct osal_timer_entry));
 
             if (entry == NULL) {
                 osal_irq_restore(irq_state);
@@ -145,7 +255,7 @@ int osal_timer_create(uint32_t timeout_us, bool periodic, osal_timer_callback_t 
     return -1;
 }
 
-/* Arm a software timer using the current uptime as the base. */
+/* 以当前精细微秒时间为基准启动一个软件定时器。 */
 bool osal_timer_start(int timer_id) {
     uint32_t irq_state;
     struct osal_timer_entry *entry;
@@ -161,14 +271,14 @@ bool osal_timer_start(int timer_id) {
         return false;
     }
 
-    entry->expiry_us = s_uptime_us64 + (uint64_t)entry->period_us;
+    entry->expiry_us = osal_timer_get_uptime_us64() + (uint64_t)entry->period_us;
     entry->active = true;
     osal_timer_refresh_next_expiry();
     osal_irq_restore(irq_state);
     return true;
 }
 
-/* Disarm a software timer without freeing it. */
+/* 停止一个软件定时器但不释放其控制块。 */
 void osal_timer_stop(int timer_id) {
     uint32_t irq_state;
 
@@ -184,7 +294,7 @@ void osal_timer_stop(int timer_id) {
     osal_irq_restore(irq_state);
 }
 
-/* Free one software timer and release its heap allocation. */
+/* 删除一个软件定时器并释放其控制块。 */
 void osal_timer_delete(int timer_id) {
     uint32_t irq_state;
 
@@ -201,7 +311,7 @@ void osal_timer_delete(int timer_id) {
     osal_irq_restore(irq_state);
 }
 
-/* Poll all software timers and invoke callbacks for expired entries. */
+/* 轮询软件定时器，并只在到达最近事件前不做全表扫描。 */
 void osal_timer_poll(void) {
     uint64_t now_us;
     bool handled = false;

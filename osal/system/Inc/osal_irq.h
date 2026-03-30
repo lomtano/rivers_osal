@@ -1,14 +1,3 @@
-/******************************************************************************
- * Copyright (C) 2024-2026 rivers. All rights reserved.
- *
- * @author JH
- *
- * @version V1.0 2023-12-03
- *
- * @note 1 tab == 4 spaces!
- *
- *****************************************************************************/
-
 #ifndef OSAL_IRQ_H
 #define OSAL_IRQ_H
 
@@ -20,25 +9,25 @@ extern "C" {
 #endif
 
 /**
- * @brief Enter a critical section by disabling interrupts.
- * @return Previous interrupt state for osal_irq_restore().
+ * @brief 进入临界区并关闭中断。
+ * @return 用于后续 osal_irq_restore() 恢复的中断状态。
  */
 uint32_t osal_irq_disable(void);
 
 /**
- * @brief Enable interrupts unconditionally.
+ * @brief 无条件打开中断。
  */
 void osal_irq_enable(void);
 
 /**
- * @brief Restore a previously saved interrupt state.
- * @param prev_state Value returned by osal_irq_disable().
+ * @brief 恢复之前保存的中断状态。
+ * @param prev_state 由 osal_irq_disable() 返回的状态值。
  */
 void osal_irq_restore(uint32_t prev_state);
 
 /**
- * @brief Check whether the current context is an ISR.
- * @return True when executing inside an interrupt context.
+ * @brief 判断当前是否运行在中断上下文中。
+ * @return 处于中断上下文时返回 true。
  */
 bool osal_irq_is_in_isr(void);
 
@@ -46,4 +35,4 @@ bool osal_irq_is_in_isr(void);
 }
 #endif
 
-#endif // OSAL_IRQ_H
+#endif /* OSAL_IRQ_H */

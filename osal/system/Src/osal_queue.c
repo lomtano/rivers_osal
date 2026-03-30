@@ -1,12 +1,4 @@
-/*
- * osal_queue.c
- * Generic fixed-item message queue.
- * - Queue storage is treated as raw bytes so any fixed-size message can be copied
- * - Supports both heap-backed and user-buffer-backed creation
- * - Non-blocking, timeout, and ISR-safe send/receive helpers
- */
-
-#include "../Inc/osal_queue.h"
+﻿#include "../Inc/osal_queue.h"
 #include "../Inc/osal_mem.h"
 #include "../Inc/osal_task.h"
 #include <stdbool.h>
@@ -25,7 +17,6 @@ struct osal_queue {
 
 static osal_queue_t *s_queue_list = NULL;
 
-/* Calculate the total byte storage required for one queue payload area. */
 static bool osal_queue_storage_size(uint32_t length, uint32_t item_size, uint32_t *total_size) {
     uint64_t bytes;
 
@@ -42,13 +33,11 @@ static bool osal_queue_storage_size(uint32_t length, uint32_t item_size, uint32_
     return true;
 }
 
-/* Insert a queue into the internal object list. */
 static void osal_queue_link(osal_queue_t *q) {
     q->next = s_queue_list;
     s_queue_list = q;
 }
 
-/* Allocate and initialize a queue control block. */
 static osal_queue_t *osal_queue_create_internal(uint8_t *storage, uint32_t length, uint32_t item_size, bool owns_storage) {
     osal_queue_t *q;
 
@@ -75,7 +64,6 @@ static osal_queue_t *osal_queue_create_internal(uint8_t *storage, uint32_t lengt
     return q;
 }
 
-/* Allocate both the queue control block and payload storage from the OSAL heap. */
 osal_queue_t *osal_queue_create(uint32_t length, uint32_t item_size) {
     uint32_t total_size;
     uint8_t *storage;
@@ -92,7 +80,6 @@ osal_queue_t *osal_queue_create(uint32_t length, uint32_t item_size) {
     return osal_queue_create_internal(storage, length, item_size, true);
 }
 
-/* Create a queue on top of a caller-owned storage region. */
 osal_queue_t *osal_queue_create_static(void *buffer, uint32_t length, uint32_t item_size) {
     uint32_t total_size;
 
@@ -104,7 +91,6 @@ osal_queue_t *osal_queue_create_static(void *buffer, uint32_t length, uint32_t i
     return osal_queue_create_internal((uint8_t *)buffer, length, item_size, false);
 }
 
-/* Remove a queue control block from the internal list and free owned storage. */
 void osal_queue_delete(osal_queue_t *q) {
     osal_queue_t *prev = NULL;
     osal_queue_t *current = s_queue_list;
@@ -132,7 +118,6 @@ void osal_queue_delete(osal_queue_t *q) {
     }
 }
 
-/* Report the current number of queued items. */
 uint32_t osal_queue_get_count(const osal_queue_t *q) {
     uint32_t irq_state;
     uint32_t count;
@@ -147,7 +132,6 @@ uint32_t osal_queue_get_count(const osal_queue_t *q) {
     return count;
 }
 
-/* Enqueue one item without entering or leaving a critical section. */
 static osal_status_t osal_queue_enqueue(osal_queue_t *q, const void *item) {
     if (q->count >= q->length) {
         return OSAL_ERR_RESOURCE;
@@ -159,7 +143,6 @@ static osal_status_t osal_queue_enqueue(osal_queue_t *q, const void *item) {
     return OSAL_OK;
 }
 
-/* Dequeue one item without entering or leaving a critical section. */
 static osal_status_t osal_queue_dequeue(osal_queue_t *q, void *item) {
     if (q->count == 0U) {
         return OSAL_ERR_RESOURCE;
@@ -171,7 +154,6 @@ static osal_status_t osal_queue_dequeue(osal_queue_t *q, void *item) {
     return OSAL_OK;
 }
 
-/* Send one queue item with interrupt protection. */
 osal_status_t osal_queue_send(osal_queue_t *q, const void *item) {
     uint32_t irq_state;
     osal_status_t res;
@@ -186,7 +168,6 @@ osal_status_t osal_queue_send(osal_queue_t *q, const void *item) {
     return res;
 }
 
-/* Receive one queue item with interrupt protection. */
 osal_status_t osal_queue_recv(osal_queue_t *q, void *item) {
     uint32_t irq_state;
     osal_status_t res;
@@ -201,7 +182,6 @@ osal_status_t osal_queue_recv(osal_queue_t *q, void *item) {
     return res;
 }
 
-/* Retry queue send until success or timeout in task context. */
 osal_status_t osal_queue_send_timeout(osal_queue_t *q, const void *item, uint32_t timeout_ms) {
     uint32_t start;
 
@@ -226,7 +206,6 @@ osal_status_t osal_queue_send_timeout(osal_queue_t *q, const void *item, uint32_
     }
 }
 
-/* Retry queue receive until success or timeout in task context. */
 osal_status_t osal_queue_recv_timeout(osal_queue_t *q, void *item, uint32_t timeout_ms) {
     uint32_t start;
 
@@ -251,7 +230,6 @@ osal_status_t osal_queue_recv_timeout(osal_queue_t *q, void *item, uint32_t time
     }
 }
 
-/* ISR-oriented send path that assumes the caller already owns interrupt context. */
 osal_status_t osal_queue_send_from_isr(osal_queue_t *q, const void *item) {
     if ((q == NULL) || (item == NULL)) {
         return OSAL_ERR_PARAM;
@@ -260,7 +238,6 @@ osal_status_t osal_queue_send_from_isr(osal_queue_t *q, const void *item) {
     return osal_queue_enqueue(q, item);
 }
 
-/* ISR-oriented receive path that assumes the caller already owns interrupt context. */
 osal_status_t osal_queue_recv_from_isr(osal_queue_t *q, void *item) {
     if ((q == NULL) || (item == NULL)) {
         return OSAL_ERR_PARAM;

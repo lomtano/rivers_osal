@@ -1,12 +1,4 @@
-/*
- * osal_mem.c
- * Unified static heap allocator plus fixed-size mempool support.
- * - Heap allocator: first-fit free list with adjacent block coalescing
- * - Control objects in other OSAL modules can allocate from this heap
- * - User may provide a custom heap buffer, otherwise OSAL_HEAP_SIZE is used
- */
-
-#include "../Inc/osal_mem.h"
+﻿#include "../Inc/osal_mem.h"
 #include "../Inc/osal_irq.h"
 #include <stdbool.h>
 #include <string.h>
@@ -40,46 +32,38 @@ typedef union {
 
 static osal_default_heap_t s_default_heap;
 
-/* Round a byte count upward to the allocator alignment boundary. */
 static uint32_t osal_mem_align_up(uint32_t value) {
     uint32_t mask = OSAL_MEM_ALIGN - 1U;
     return (value + mask) & ~mask;
 }
 
-/* Round a byte count downward to the allocator alignment boundary. */
 static uint32_t osal_mem_align_down(uint32_t value) {
     uint32_t mask = OSAL_MEM_ALIGN - 1U;
     return value & ~mask;
 }
 
-/* Read the raw size field from one heap block header. */
 static uint32_t osal_heap_block_size(const osal_heap_block_t *block) {
     return (block->size_and_flags & OSAL_BLOCK_SIZE_MASK);
 }
 
-/* Check whether one heap block is currently allocated. */
 static bool osal_heap_block_used(const osal_heap_block_t *block) {
     return ((block->size_and_flags & OSAL_BLOCK_USED_FLAG) != 0U);
 }
 
-/* Write the size and allocation flag into one heap block header. */
 static void osal_heap_set_block(osal_heap_block_t *block, uint32_t size, bool used) {
     block->size_and_flags = (size & OSAL_BLOCK_SIZE_MASK) | (used ? OSAL_BLOCK_USED_FLAG : 0U);
 }
 
-/* Reuse the first word of each mempool block as a singly-linked next pointer. */
 static void **osal_block_next_ptr(void *block) {
     return (void **)block;
 }
 
-/* Lazily initialize the heap the first time any allocator API is used. */
 static void osal_mem_ensure_init(void) {
     if (!s_heap_ready) {
         osal_mem_init(NULL, 0U);
     }
 }
 
-/* Initialize the unified OSAL heap from either user or default storage. */
 void osal_mem_init(void *heap_buffer, uint32_t heap_size) {
     uint8_t *buffer;
     uint32_t size;
@@ -112,7 +96,6 @@ void osal_mem_init(void *heap_buffer, uint32_t heap_size) {
     s_heap_ready = true;
 }
 
-/* Allocate one block from the unified OSAL heap using first-fit search. */
 void *osal_mem_alloc(uint32_t size) {
     uint32_t irq_state;
     uint32_t request_size;
@@ -168,7 +151,6 @@ void *osal_mem_alloc(uint32_t size) {
     return NULL;
 }
 
-/* Insert a freed block back into the ordered free list and coalesce neighbors. */
 static void osal_mem_insert_free_block(osal_heap_block_t *block) {
     osal_heap_block_t *prev = NULL;
     osal_heap_block_t *current = s_free_list;
@@ -202,7 +184,6 @@ static void osal_mem_insert_free_block(osal_heap_block_t *block) {
     }
 }
 
-/* Return one previously allocated block back to the unified OSAL heap. */
 void osal_mem_free(void *ptr) {
     uint32_t irq_state;
     osal_heap_block_t *block;
@@ -227,7 +208,6 @@ void osal_mem_free(void *ptr) {
     osal_irq_restore(irq_state);
 }
 
-/* Sum the total size of all free heap blocks. */
 uint32_t osal_mem_get_free_size(void) {
     uint32_t irq_state;
     uint32_t total = 0U;
@@ -249,7 +229,6 @@ uint32_t osal_mem_get_free_size(void) {
     return total;
 }
 
-/* Allocate a mempool control block from the unified OSAL heap. */
 osal_mempool_t *osal_mempool_create(void *pool_buffer, uint32_t block_size, uint32_t block_count) {
     osal_mempool_t *mp;
 
@@ -277,7 +256,6 @@ osal_mempool_t *osal_mempool_create(void *pool_buffer, uint32_t block_size, uint
     return mp;
 }
 
-/* Destroy a mempool control block. */
 void osal_mempool_delete(osal_mempool_t *mp) {
     if (mp == NULL) {
         return;
@@ -285,7 +263,6 @@ void osal_mempool_delete(osal_mempool_t *mp) {
     osal_mem_free(mp);
 }
 
-/* Pop one fixed-size block from a mempool free list. */
 void *osal_mempool_alloc(osal_mempool_t *mp) {
     void *block;
     uint32_t irq_state;
@@ -301,7 +278,6 @@ void *osal_mempool_alloc(osal_mempool_t *mp) {
     return block;
 }
 
-/* Push one fixed-size block back into a mempool free list. */
 void osal_mempool_free(osal_mempool_t *mp, void *ptr) {
     uint8_t *block;
     uint8_t *start;
