@@ -1,106 +1,98 @@
-# OSAL 使用示例
+﻿# OSAL 使用示例
 
-本文对应的参考示例文件是：
+当前参考示例文件位于：
 
-- `middleware/osal/examples/stm32f4/osal_integration_stm32f4.c`
+- `Middleware/osal/platform/example/stm32f4/osal_integration_stm32f4.c`
 
-## 1. 两个无阻塞点灯任务
+## 1. 任务创建与启动
 
-示例中创建了两个协作式任务。每个任务都会：
+最小示例：
 
-- 读取 `osal_timer_get_tick()`
-- 判断自己的下一次翻转时间是否已到
-- 到时就切换一次 LED
-- 没到时立即返回
+```c
+static void app_task(void *arg)
+{
+    (void)arg;
+    osal_platform_led1_toggle();
+    (void)osal_task_sleep(NULL, 500U);
+}
 
-这样调度器始终保持响应，不需要使用 `HAL_Delay()` 一类阻塞式延时。
+void app_task_demo_init(void)
+{
+    osal_task_t *task = osal_task_create(app_task, NULL, OSAL_TASK_PRIORITY_LOW);
+    if (task != NULL) {
+        (void)osal_task_start(task);
+    }
+}
+```
 
-## 2. 泛型队列生产者/消费者
+## 2. 事件
 
-队列示例使用的是结构体消息，而不是单纯的字节流：
+事件示例在 `osal_integration_stm32f4.c` 里分成了：
+
+- 等待任务
+- 置位任务
+- 初始化函数
+
+适合复制到应用层做最小联调。
+
+## 3. 互斥量
+
+互斥量示例里演示了：
+
+- 创建互斥量
+- 两个任务竞争同一把锁
+- 修改共享计数器
+
+## 4. 队列
+
+队列示例使用结构体消息：
 
 ```c
 typedef struct {
     uint32_t sequence;
     uint8_t payload[8];
-} queue_message_t;
+} osal_example_queue_message_t;
 ```
 
-生产者每隔 `1000ms` 发送一个 `queue_message_t`，消费者取出后打印内容。
+它演示了：
 
-这一套队列接口同样可以存放：
+- 静态消息缓存区创建
+- 高优先级生产者
+- 高优先级消费者
 
-- 指针
-- 定长数组
-- 其它结构体
+## 5. 软件定时器
 
-只要创建队列时传入正确的 `item_size` 即可。
+示例中同时演示了：
 
-当前 STM32F4 示例里，队列演示默认使用的是：
+- 单次软件定时器
+- 周期性软件定时器
 
-```c
-osal_queue_create_static(g_queue_storage, 8U, sizeof(queue_message_t));
-```
+## 6. USART 组件
 
-也就是显式静态数组作为消息缓存区，更符合 MCU 裸机项目的内存使用习惯。
+示例里演示了：
 
-## 3. 单次和周期性软件定时器
+- 创建平台串口组件
+- 绑定控制台
+- 发送字符串
+- 发送数组
 
-示例里创建了两个软件定时器：
+## 7. Flash 组件
 
-- 一个 `2s` 后触发一次的单次定时器
-- 一个每 `1s` 触发一次的周期定时器
+示例里演示了：
 
-软件定时器回调在 `osal_run()` 内部轮询阶段触发，因此应用主循环只需保持：
+- 解锁
+- 擦除
+- 写入
+- 回读
+- 上锁
 
-```c
-while (1) {
-    osal_run();
-}
-```
+## 8. 适配层文件职责
 
-## 4. USART 桥接组件使用方式
+- `platform/osal_platform_cortexm.c/.h`
+  通用模板，只负责告诉用户哪些接口需要填写。
 
-`USART` 组件位于：
+- `platform/example/stm32f4/osal_platform_stm32f4.c/.h`
+  根据模板填写出的 STM32F4 适配层。
 
-- `middleware/osal/components/periph/usart`
-
-平台层只需要提供目标 SDK 的“发送单字节”函数桥接。挂载成功后，
-`printf` 重定向可以直接写成：
-
-```c
-int fputc(int ch, FILE *f) {
-    return periph_uart_fputc(ch, f);
-}
-```
-
-对上层来说，发送单字节、字符串、数组的接口就不需要再随着 MCU SDK 改动。
-
-## 5. Flash 桥接组件使用方式
-
-`Flash` 组件位于：
-
-- `middleware/osal/components/periph/flash`
-
-典型调用流程如下：
-
-```c
-periph_flash_unlock(flash);
-periph_flash_erase(flash, demo_addr, demo_len);
-periph_flash_write(flash, demo_addr, payload, payload_len);
-periph_flash_lock(flash);
-```
-
-不同 MCU 的扇区大小、擦除粒度和支持的写入宽度都由桥接层自己处理，
-上层不需要再关心具体用的是字节、半字、字还是双字写入。
-
-## 6. STM32F4 示例文件职责划分
-
-STM32F4 示例刻意拆成两部分：
-
-- `osal_platform_stm32f4.c/.h`
-  只负责平台适配，例如 `TIMx/SysTick` 接入、USART 桥接、Flash 桥接、LED 钩子
-- `osal_integration_stm32f4.c`
-  只负责业务示范，例如任务、队列、软件定时器、Flash 示例调用
-
-后续移植到 GD32、N32 时，也建议保持同样的拆分方式。
+- `platform/example/stm32f4/osal_integration_stm32f4.c`
+  组件使用示例集。

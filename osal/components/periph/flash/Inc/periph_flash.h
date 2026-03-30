@@ -1,4 +1,4 @@
-#ifndef PERIPH_FLASH_H
+﻿#ifndef PERIPH_FLASH_H
 #define PERIPH_FLASH_H
 
 #include <stdint.h>
@@ -25,7 +25,7 @@ typedef struct {
  * @brief 基于桥接函数表创建一个 Flash 组件实例。
  * @param bridge 目标 MCU SDK 对应的桥接回调表。
  * @param context 回传给桥接回调的用户上下文。
- * @return 成功返回 Flash 组件句柄，失败返回 NULL。
+ * @return 成功时返回 Flash 组件句柄，失败时返回 NULL。
  */
 periph_flash_t *periph_flash_create(const periph_flash_bridge_t *bridge, void *context);
 

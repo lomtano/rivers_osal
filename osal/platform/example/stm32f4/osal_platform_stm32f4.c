@@ -7,7 +7,7 @@
 static periph_uart_t *s_uart_component = NULL;
 static periph_flash_t *s_flash_component = NULL;
 
-/* 串口桥接：把 STM32 HAL 的单字节发送能力挂给 USART 小组件。 */
+/* 串口桥接：把 STM32 HAL 的单字节发送能力挂给 USART 组件。 */
 static osal_status_t osal_platform_uart_write_byte(void *context, uint8_t byte) {
     UART_HandleTypeDef *uart = (UART_HandleTypeDef *)context;
 
@@ -20,7 +20,7 @@ static osal_status_t osal_platform_uart_write_byte(void *context, uint8_t byte) 
 
 /* Flash 桥接：下面这一组函数负责把 STM32F4 的内部 Flash API 挂给组件层。 */
 static osal_status_t osal_platform_flash_unlock(void *context) {
-    /* 这里的 context 在当前示例中没有用到，所以显式丢弃它，避免编译器告警。 */
+    /* 当前示例里没有额外的 Flash 上下文对象，所以这里显式丢弃 context。 */
     (void)context;
     return (HAL_FLASH_Unlock() == HAL_OK) ? OSAL_OK : OSAL_ERROR;
 }
@@ -169,8 +169,7 @@ static const osal_tick_source_t s_tick_source = {
 void osal_platform_init(void) {
     /*
      * 当前工程里 HAL_Init()、时钟配置、GPIO 初始化、USART 初始化仍由 main.c 完成。
-     * 如果你以后想把串口初始化也下沉到平台层，可以在这里主动调用：
-     * OSAL_PLATFORM_UART_INIT();
+     * 如果你想把串口初始化集中到平台层，可以在这里主动调用 OSAL_PLATFORM_UART_INIT()。
      */
 }
 

@@ -3,20 +3,26 @@
 
 /*
  * 说明：
- * 1. 这是模板文件，不是当前工程的实际板级适配实现。
- * 2. 这里的代码故意保持“最小可读骨架”，让用户看清需要填哪些桥接点。
- * 3. 当前工程真正参与编译的是 osal_platform_stm32f4.c。
+ * 1. 这是 Cortex-M 平台模板源文件。
+ * 2. 这个文件主要用来告诉用户：哪些函数需要和 MCU SDK 对接。
+ * 3. 当前工程真正参与编译的具体实例文件，是：
+ *    platform/example/stm32f4/osal_platform_stm32f4.c
+ * 4. 模板里的 Flash 桥接默认全部返回 OSAL_ERR_RESOURCE，
+ *    你移植到新 MCU 时，需要按目标 SDK 把它们填完整。
  */
 
 static periph_uart_t *s_uart_component = NULL;
 static periph_flash_t *s_flash_component = NULL;
 
-/* 这里只演示桥接形式：把底层“发送单字节”能力接到 USART 小组件。 */
+/* 串口桥接：把“发送单字节”能力接给 USART 小组件。 */
 static osal_status_t osal_platform_uart_write_byte(void *context, uint8_t byte) {
     return (osal_status_t)OSAL_PLATFORM_UART_WRITE_BYTE(context, byte);
 }
 
-/* 模板默认不提供 Flash 写入实现，留给具体芯片文件填写。 */
+/*
+ * Flash 桥接模板：
+ * 如果目标 MCU 不支持某种写宽，可以保留为 OSAL_ERR_RESOURCE。
+ */
 static osal_status_t osal_platform_flash_unlock(void *context) {
     (void)context;
     return OSAL_ERR_RESOURCE;
@@ -49,6 +55,28 @@ static osal_status_t osal_platform_flash_write_u8(void *context, uint32_t addres
     return OSAL_ERR_RESOURCE;
 }
 
+static osal_status_t osal_platform_flash_write_u16(void *context, uint32_t address, uint16_t value) {
+    (void)context;
+    (void)address;
+    (void)value;
+    return OSAL_ERR_RESOURCE;
+}
+
+static osal_status_t osal_platform_flash_write_u32(void *context, uint32_t address, uint32_t value) {
+    (void)context;
+    (void)address;
+    (void)value;
+    return OSAL_ERR_RESOURCE;
+}
+
+static osal_status_t osal_platform_flash_write_u64(void *context, uint32_t address, uint64_t value) {
+    (void)context;
+    (void)address;
+    (void)value;
+    return OSAL_ERR_RESOURCE;
+}
+
+/* 系统时基桥接：这里只返回原始硬件读数，不做算法。 */
 static uint32_t osal_platform_tick_source_get_clock_hz(void) {
     return OSAL_PLATFORM_TICK_SOURCE_CLOCK_HZ();
 }
@@ -78,7 +106,10 @@ static const periph_flash_bridge_t s_flash_bridge = {
     .lock = osal_platform_flash_lock,
     .erase = osal_platform_flash_erase,
     .read = osal_platform_flash_read,
-    .write_u8 = osal_platform_flash_write_u8
+    .write_u8 = osal_platform_flash_write_u8,
+    .write_u16 = osal_platform_flash_write_u16,
+    .write_u32 = osal_platform_flash_write_u32,
+    .write_u64 = osal_platform_flash_write_u64
 };
 
 static const osal_tick_source_t s_tick_source = {
@@ -90,6 +121,10 @@ static const osal_tick_source_t s_tick_source = {
 };
 
 void osal_platform_init(void) {
+    /*
+     * 模板里默认不做任何事。
+     * 如果你想把某些 SDK 初始化动作集中到平台层，可以在具体实例文件里实现。
+     */
 }
 
 const osal_tick_source_t *osal_platform_get_tick_source(void) {

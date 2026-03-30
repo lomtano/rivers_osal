@@ -1,4 +1,4 @@
-#ifndef PERIPH_UART_H
+﻿#ifndef PERIPH_UART_H
 #define PERIPH_UART_H
 
 #include <stdint.h>
@@ -16,10 +16,10 @@ typedef struct {
 } periph_uart_bridge_t;
 
 /**
- * @brief 基于单字节发送桥接函数创建一个 USART 组件实例。
+ * @brief 基于“发送单字节”桥接回调创建一个 USART 组件实例。
  * @param bridge 目标 MCU SDK 对应的桥接回调表。
  * @param context 回传给桥接回调的用户上下文。
- * @return 成功返回 USART 组件句柄，失败返回 NULL。
+ * @return 成功时返回 USART 组件句柄，失败时返回 NULL。
  */
 periph_uart_t *periph_uart_create(const periph_uart_bridge_t *bridge, void *context);
 
