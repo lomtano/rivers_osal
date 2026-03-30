@@ -251,7 +251,7 @@ int main(void) {
     HAL_Init();
     SystemClock_Config();
     MX_GPIO_Init();
-    MX_USART2_UART_Init();
+    OSAL_PLATFORM_UART_INIT();
 
     osal_platform_init();
     osal_platform_tick_start();

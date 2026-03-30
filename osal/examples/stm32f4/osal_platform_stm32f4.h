@@ -19,6 +19,14 @@ extern "C" {
 #define OSAL_PLATFORM_FLASH_DEMO_ADDRESS 0x080E0000UL
 #endif
 
+#ifndef OSAL_PLATFORM_UART_HANDLE
+#define OSAL_PLATFORM_UART_HANDLE huart1
+#endif
+
+#ifndef OSAL_PLATFORM_UART_INIT
+#define OSAL_PLATFORM_UART_INIT() MX_USART1_UART_Init()
+#endif
+
 /**
  * @brief 定义该宏后，启动时会自动运行 Flash 示例任务。
  */

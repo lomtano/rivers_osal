@@ -1,43 +1,43 @@
 # OSAL 移植指南
 
-本文说明如何把 `middleware/osal` 移植到另一套 32 位 MCU 工程中，例如 STM32、GD32、N32。
+本文说明如何把 `osal` 移植到另一套 32 位 MCU 工程中，例如 STM32、GD32、N32。
 
 ## 1. 复制目录
 
-把整个 `middleware/osal/` 目录复制到目标工程中。
+把整个 `osal/` 目录复制到目标工程中。
 
 最少通常保留：
 
-- `middleware/osal/system`
-- `middleware/osal/components`
+- `osal/system`
+- `osal/components`
 
 如果你还想保留 STM32F4 参考示例，也一起复制：
 
-- `middleware/osal/examples`
+- `osal/examples`
 
 ## 2. 添加头文件路径
 
 给工程加入以下头文件路径：
 
-- `middleware/osal/system/Inc`
-- `middleware/osal/components/periph/usart/Inc`
-- `middleware/osal/components/periph/flash/Inc`
+- `osal/system/Inc`
+- `osal/components/periph/usart/Inc`
+- `osal/components/periph/flash/Inc`
 
 如果还要编译 STM32F4 示例，再加入：
 
-- `middleware/osal/examples/stm32f4`
+- `osal/examples/stm32f4`
 
 ## 3. 添加源文件
 
 把以下源文件加入工程：
 
-- `middleware/osal/system/Src/*.c`
-- `middleware/osal/components/periph/usart/Src/*.c`
-- `middleware/osal/components/periph/flash/Src/*.c`
+- `osal/system/Src/*.c`
+- `osal/components/periph/usart/Src/*.c`
+- `osal/components/periph/flash/Src/*.c`
 
 示例文件按需加入：
 
-- `middleware/osal/examples/stm32f4/*.c`
+- `osal/examples/stm32f4/*.c`
 
 ## 4. 实现平台中断抽象
 
@@ -75,7 +75,7 @@ void TIMx_IRQHandler(void) {
 
 ## 6. STM32F4 模板适配方式
 
-`middleware/osal/examples/stm32f4/osal_platform_stm32f4.h` 已经整理成模板骨架。
+`osal/examples/stm32f4/osal_platform_stm32f4.h` 已经整理成模板骨架。
 
 如果你使用通用 `TIMx`：
 
@@ -125,7 +125,7 @@ while (1) {
 
 `USART` 组件位于：
 
-- `middleware/osal/components/periph/usart`
+- `osal/components/periph/usart`
 
 为了兼容之前代码，当前组件对外仍然使用 `periph_uart_*` 这一组 API 名称。
 
@@ -161,7 +161,7 @@ int fputc(int ch, FILE *f) {
 
 `Flash` 组件位于：
 
-- `middleware/osal/components/periph/flash`
+- `osal/components/periph/flash`
 
 桥接层可按目标 MCU 能力实现以下任意组合：
 

@@ -179,7 +179,7 @@ void osal_platform_init(void) {
 /* 创建或返回缓存的 STM32F4 USART 桥接组件。 */
 periph_uart_t *osal_platform_uart_create(void) {
     if (s_uart_component == NULL) {
-        s_uart_component = periph_uart_create(&s_uart_bridge, &huart2);
+        s_uart_component = periph_uart_create(&s_uart_bridge, &OSAL_PLATFORM_UART_HANDLE);
     }
     return s_uart_component;
 }
