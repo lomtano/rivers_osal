@@ -10,15 +10,31 @@
  * 说明：
  * 1. 这个文件是“OSAL 功能使用示例集”，默认不建议直接加入正式工程编译。
  * 2. 你可以按功能把需要的示例片段复制到 main.c 或自己的 app 文件里。
- * 3. 每个小节都只保留演示该组件所必须的最小任务函数 / 回调函数。
- * 4. 它不是一个完整业务应用，而是一个按功能拆开的用法备忘录。
+ * 3. 每个小节都尽量把“创建 -> 启动/绑定 -> 使用”写完整。
+ * 4. 如果某个功能天然依赖任务或回调，本节会把最小必需的任务函数 / 回调函数也一起给出。
+ * 5. 复制到自己工程时，通常只需要保留你想用的那一节。
+ */
+
+/* ========================= 0. main 最小接入顺序示例 =========================
+ * 下面这段通常放在 main() 的硬件初始化之后：
+ *
+ *     osal_init();
+ *     osal_example_usart_demo_init();
+ *     osal_example_task_demo_init();
+ *     osal_example_timer_demo_init();
+ *
+ *     while (1) {
+ *         osal_run();
+ *     }
+ *
+ * 同时要记得在系统时基中断里调用：
+ *     osal_tick_handler();
  */
 
 /* ========================= 1. 创建任务并启动任务 =========================
- * 演示接口：
- * - osal_task_create()
- * - osal_task_start()
- * - osal_task_sleep()
+ * 复制本节时，请把下面两个部分一起复制：
+ * 1. 任务入口函数
+ * 2. 对应的 demo_init() 初始化函数
  */
 static void osal_example_basic_task(void *arg) {
     (void)arg;
@@ -35,10 +51,10 @@ void osal_example_task_demo_init(void) {
 }
 
 /* ========================= 2. 互斥量示例 =========================
- * 演示接口：
- * - osal_mutex_create()
- * - osal_mutex_lock()
- * - osal_mutex_unlock()
+ * 演示流程：
+ * 1. 创建互斥量
+ * 2. 创建两个访问共享资源的任务
+ * 3. 在任务里 lock / unlock
  */
 static osal_mutex_t *s_example_mutex = NULL;
 static uint32_t s_example_shared_counter = 0U;
@@ -79,10 +95,10 @@ void osal_example_mutex_demo_init(void) {
 }
 
 /* ========================= 3. 事件示例 =========================
- * 演示接口：
- * - osal_event_create()
- * - osal_event_wait()
- * - osal_event_set()
+ * 演示流程：
+ * 1. 创建事件对象
+ * 2. 一个任务等待事件
+ * 3. 另一个任务周期性置位事件
  */
 static osal_event_t *s_example_event = NULL;
 
@@ -133,12 +149,10 @@ void osal_example_event_demo_init(void) {
 }
 
 /* ========================= 4. 队列示例 =========================
- * 演示接口：
- * - osal_queue_create_static()
- * - osal_queue_send()
- * - osal_queue_recv()
- *
- * 这里用结构体作为消息成员，说明队列支持固定大小的任意消息类型。
+ * 演示流程：
+ * 1. 静态创建一个“结构体消息队列”
+ * 2. 高优先级生产者任务发消息
+ * 3. 高优先级消费者任务收消息
  */
 typedef struct {
     uint32_t sequence;
@@ -216,12 +230,10 @@ void osal_example_queue_demo_init(void) {
 }
 
 /* ========================= 5. 软件定时器示例 =========================
- * 演示接口：
- * - osal_timer_create()
- * - osal_timer_start()
- * - osal_timer_stop()
- *
- * 下面同时给出单次定时器和周期定时器示例。
+ * 演示流程：
+ * 1. 创建单次定时器
+ * 2. 创建周期定时器
+ * 3. 启动后由 osal_run() 在主循环里驱动调度
  */
 static void osal_example_oneshot_timer_callback(void *arg) {
     (void)arg;
@@ -251,11 +263,10 @@ void osal_example_timer_demo_init(void) {
 }
 
 /* ========================= 6. USART 组件示例 =========================
- * 演示接口：
- * - osal_platform_uart_create()
- * - periph_uart_bind_console()
- * - periph_uart_write_string()
- * - periph_uart_write()
+ * 复制本节时，通常你只需要：
+ * 1. 调用 osal_platform_uart_create() 创建 USART 组件对象
+ * 2. 调用 periph_uart_bind_console() 绑定控制台
+ * 3. 之后 printf() 和 periph_uart_write_xxx() 都能直接用
  */
 static periph_uart_t *s_example_uart = NULL;
 
@@ -268,18 +279,20 @@ void osal_example_usart_demo_init(void) {
     }
 
     (void)periph_uart_bind_console(s_example_uart);
+    printf("\r\nOSAL STM32F4 demo\r\n");
+    printf("tick source: osal_init() + SysTick counter\r\n");
     (void)periph_uart_write_string(s_example_uart, "osal usart demo\r\n");
     (void)periph_uart_write(s_example_uart, raw_bytes, (uint32_t)sizeof(raw_bytes));
 }
 
 /* ========================= 7. Flash 组件示例 =========================
- * 演示接口：
- * - osal_platform_flash_create()
- * - periph_flash_unlock()
- * - periph_flash_erase()
- * - periph_flash_write()
- * - periph_flash_read()
- * - periph_flash_lock()
+ * 复制本节时，这一整段已经包含了：
+ * 1. 创建 Flash 组件对象
+ * 2. 解锁
+ * 3. 擦除
+ * 4. 写入
+ * 5. 回读
+ * 6. 上锁
  */
 void osal_example_flash_demo_once(void) {
     periph_flash_t *flash;
