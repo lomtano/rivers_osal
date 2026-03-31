@@ -12,8 +12,10 @@ struct osal_task {
     void *arg;
     osal_task_state_t state;
     osal_task_priority_t priority;
-    uint32_t sleep_start_ms;
-    uint32_t sleep_timeout_ms;
+    uint32_t sleep_deadline_ms;
+    uint32_t dispatch_tick_ms;
+    uint32_t periodic_wake_ms;
+    bool periodic_sleep_initialized;
     struct osal_task *next;
 };
 
@@ -123,13 +125,14 @@ static bool osal_run_priority_list(osal_task_t *head, osal_task_t *skip_task, ui
         }
 
         if ((t->state == OSAL_TASK_BLOCKED) &&
-            ((uint32_t)(now_ms - t->sleep_start_ms) >= t->sleep_timeout_ms)) {
+((int32_t)(now_ms - t->sleep_deadline_ms) >= 0)) {
             t->state = OSAL_TASK_READY;
         }
 
         if (t->state == OSAL_TASK_READY) {
             ran = true;
             t->state = OSAL_TASK_RUNNING;
+            t->dispatch_tick_ms = osal_timer_get_uptime_ms();
             s_current_task = t;
             t->fn(t->arg);
             if (t->state == OSAL_TASK_RUNNING) {
@@ -167,8 +170,10 @@ osal_task_t *osal_task_create(osal_task_fn_t fn, void *arg, osal_task_priority_t
     task->arg = arg;
     task->state = OSAL_TASK_SUSPENDED;
     task->priority = priority;
-    task->sleep_start_ms = 0U;
-    task->sleep_timeout_ms = 0U;
+    task->sleep_deadline_ms = 0U;
+    task->dispatch_tick_ms = 0U;
+    task->periodic_wake_ms = 0U;
+    task->periodic_sleep_initialized = false;
     task->next = NULL;
     osal_task_list_append(&s_task_lists[priority], task);
     return task;
@@ -214,6 +219,7 @@ osal_status_t osal_task_start(osal_task_t *task) {
     }
 
     task->state = OSAL_TASK_READY;
+    task->periodic_sleep_initialized = false;
     return OSAL_OK;
 }
 
@@ -229,6 +235,7 @@ osal_status_t osal_task_stop(osal_task_t *task) {
     }
 
     task->state = OSAL_TASK_SUSPENDED;
+    task->periodic_sleep_initialized = false;
     return OSAL_OK;
 }
 
@@ -248,14 +255,14 @@ osal_status_t osal_task_sleep(osal_task_t *task, uint32_t ms) {
         return OSAL_ERR_PARAM;
     }
 
-    task->sleep_start_ms = osal_timer_get_uptime_ms();
-    task->sleep_timeout_ms = ms;
+    task->sleep_deadline_ms = osal_timer_get_uptime_ms() + ms;
+    task->periodic_sleep_initialized = false;
     task->state = OSAL_TASK_BLOCKED;
     return OSAL_OK;
 }
 
-/* 函数说明：让任务按照绝对周期休眠到下一次唤醒点。 */
-osal_status_t osal_task_sleep_until(osal_task_t *task, uint32_t *last_wake_ms, uint32_t period_ms) {
+/* 函数说明：让任务按照内部维护的绝对周期休眠到下一次唤醒点。 */
+osal_status_t osal_task_sleep_until(osal_task_t *task, uint32_t period_ms) {
     uint32_t now_ms;
     uint32_t next_wake_ms;
 
@@ -268,21 +275,25 @@ osal_status_t osal_task_sleep_until(osal_task_t *task, uint32_t *last_wake_ms, u
         task = s_current_task;
     }
 
-    if ((last_wake_ms == NULL) || !osal_task_contains(task)) {
-        osal_task_report("sleep_until called with invalid task handle or wake reference");
+    if (!osal_task_contains(task)) {
+        osal_task_report("sleep_until called with inactive task handle");
         return OSAL_ERR_PARAM;
     }
 
     now_ms = osal_timer_get_uptime_ms();
-    next_wake_ms = (*last_wake_ms) + period_ms;
-    *last_wake_ms = next_wake_ms;
+    if (!task->periodic_sleep_initialized) {
+        task->periodic_wake_ms = (task->dispatch_tick_ms != 0U) ? task->dispatch_tick_ms : now_ms;
+        task->periodic_sleep_initialized = true;
+    }
+
+    next_wake_ms = task->periodic_wake_ms + period_ms;
+    task->periodic_wake_ms = next_wake_ms;
 
     if ((int32_t)(now_ms - next_wake_ms) >= 0) {
         return OSAL_OK;
     }
 
-    task->sleep_start_ms = now_ms;
-    task->sleep_timeout_ms = next_wake_ms - now_ms;
+    task->sleep_deadline_ms = next_wake_ms;
     task->state = OSAL_TASK_BLOCKED;
     return OSAL_OK;
 }
