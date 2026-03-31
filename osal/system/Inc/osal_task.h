@@ -19,7 +19,7 @@ typedef struct osal_task osal_task_t;
  * 4. debug 打开时，可检测到的重复 delete / 非法句柄会通过 OSAL_DEBUG_HOOK 报告。
  *
  * 接口能力矩阵：
- * - create / delete / start / stop / sleep / yield / run: 任务态或主循环
+ * - create / delete / start / stop / sleep / sleep_until / yield / run: 任务态或主循环
  * - ISR: 不支持
  */
 
@@ -79,6 +79,16 @@ osal_status_t osal_task_stop(osal_task_t *task);
  * @return OSAL 状态码。
  */
 osal_status_t osal_task_sleep(osal_task_t *task, uint32_t ms);
+
+/**
+ * @brief 让任务按照绝对周期休眠到下一次唤醒点。
+ * @param task 任务句柄，传 NULL 表示当前任务。
+ * @param last_wake_ms 上一次计划唤醒时刻，首次使用前应初始化为当前 tick。
+ * @param period_ms 周期间隔，单位为毫秒。
+ * @return OSAL 状态码。
+ * @note 该接口适合实现稳定周期任务，语义类似 FreeRTOS 的 vTaskDelayUntil。
+ */
+osal_status_t osal_task_sleep_until(osal_task_t *task, uint32_t *last_wake_ms, uint32_t period_ms);
 
 /**
  * @brief 主动让出执行权，给同级或其他级任务运行机会。

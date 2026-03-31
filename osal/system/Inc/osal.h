@@ -70,7 +70,7 @@ typedef enum {
 #endif
 
 #ifndef OSAL_DEBUG_HOOK
-#define OSAL_DEBUG_HOOK(module, message) ((void)0)
+#define OSAL_DEBUG_HOOK(module, message) printf("[OSAL/%s] %s\r\n", module, message)
 #endif
 
 #if OSAL_CFG_ENABLE_DEBUG

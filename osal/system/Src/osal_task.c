@@ -254,6 +254,39 @@ osal_status_t osal_task_sleep(osal_task_t *task, uint32_t ms) {
     return OSAL_OK;
 }
 
+/* 函数说明：让任务按照绝对周期休眠到下一次唤醒点。 */
+osal_status_t osal_task_sleep_until(osal_task_t *task, uint32_t *last_wake_ms, uint32_t period_ms) {
+    uint32_t now_ms;
+    uint32_t next_wake_ms;
+
+    if (osal_irq_is_in_isr()) {
+        osal_task_report("sleep_until is not allowed in ISR context");
+        return OSAL_ERR_ISR;
+    }
+
+    if (task == NULL) {
+        task = s_current_task;
+    }
+
+    if ((last_wake_ms == NULL) || !osal_task_contains(task)) {
+        osal_task_report("sleep_until called with invalid task handle or wake reference");
+        return OSAL_ERR_PARAM;
+    }
+
+    now_ms = osal_timer_get_uptime_ms();
+    next_wake_ms = (*last_wake_ms) + period_ms;
+    *last_wake_ms = next_wake_ms;
+
+    if ((int32_t)(now_ms - next_wake_ms) >= 0) {
+        return OSAL_OK;
+    }
+
+    task->sleep_start_ms = now_ms;
+    task->sleep_timeout_ms = next_wake_ms - now_ms;
+    task->state = OSAL_TASK_BLOCKED;
+    return OSAL_OK;
+}
+
 /* 函数说明：执行一次内部协作式调度循环。 */
 static void osal_run_internal(osal_task_t *skip_task) {
     uint32_t now_ms = osal_timer_get_uptime_ms();
