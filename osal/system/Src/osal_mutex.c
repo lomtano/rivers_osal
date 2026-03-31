@@ -1,4 +1,4 @@
-ï»¿#include "../Inc/osal.h"
+#include "../Inc/osal.h"
 
 #if OSAL_CFG_ENABLE_MUTEX
 
@@ -16,10 +16,12 @@ struct osal_mutex {
 
 static osal_mutex_t *s_mutex_list = NULL;
 
+/* º¯ÊıËµÃ÷£ºÊä³ö»¥³âÁ¿Ä£¿éµ÷ÊÔÕï¶ÏĞÅÏ¢¡£ */
 static void osal_mutex_report(const char *message) {
     OSAL_DEBUG_REPORT("mutex", message);
 }
 
+/* º¯ÊıËµÃ÷£º¼ì²é»¥³âÁ¿¾ä±úÊÇ·ñÈÔÔÚ»î¶¯Á´±íÖĞ¡£ */
 static bool osal_mutex_contains(osal_mutex_t *mutex) {
     osal_mutex_t *current = s_mutex_list;
 
@@ -33,6 +35,7 @@ static bool osal_mutex_contains(osal_mutex_t *mutex) {
     return false;
 }
 
+/* º¯ÊıËµÃ÷£ºĞ£Ñé»¥³âÁ¿¾ä±úÊÇ·ñÓĞĞ§¡£ */
 static bool osal_mutex_validate_handle(const osal_mutex_t *mutex) {
     if (mutex == NULL) {
         return false;
@@ -46,6 +49,7 @@ static bool osal_mutex_validate_handle(const osal_mutex_t *mutex) {
     return true;
 }
 
+/* º¯ÊıËµÃ÷£º´´½¨Ò»¸ö»¥³âÁ¿¶ÔÏó¡£ */
 osal_mutex_t *osal_mutex_create(void) {
     osal_mutex_t *mutex;
 
@@ -64,6 +68,7 @@ osal_mutex_t *osal_mutex_create(void) {
     return mutex;
 }
 
+/* º¯ÊıËµÃ÷£ºÉ¾³ıÒ»¸ö»¥³âÁ¿¶ÔÏó¡£ */
 void osal_mutex_delete(osal_mutex_t *mutex) {
     osal_mutex_t *prev = NULL;
     osal_mutex_t *current = s_mutex_list;
@@ -93,6 +98,7 @@ void osal_mutex_delete(osal_mutex_t *mutex) {
     osal_mutex_report("delete called with inactive mutex handle");
 }
 
+/* º¯ÊıËµÃ÷£º³¢ÊÔ»ñÈ¡»¥³âÁ¿²¢°´ĞèµÈ´ı³¬Ê±¡£ */
 osal_status_t osal_mutex_lock(osal_mutex_t *mutex, uint32_t timeout_ms) {
     uint32_t irq_state;
     uint32_t start;
@@ -122,6 +128,7 @@ osal_status_t osal_mutex_lock(osal_mutex_t *mutex, uint32_t timeout_ms) {
     }
 }
 
+/* º¯ÊıËµÃ÷£ºÊÍ·ÅÒÑ¾­»ñÈ¡µ½µÄ»¥³âÁ¿¡£ */
 osal_status_t osal_mutex_unlock(osal_mutex_t *mutex) {
     uint32_t irq_state;
 

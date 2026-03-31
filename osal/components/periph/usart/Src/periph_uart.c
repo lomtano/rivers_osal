@@ -1,4 +1,4 @@
-ï»¿#include "osal.h"
+#include "osal.h"
 
 #if OSAL_CFG_ENABLE_USART
 
@@ -14,15 +14,18 @@ struct periph_uart {
 static periph_uart_t *s_uart_list = NULL;
 static periph_uart_t *s_console_uart = NULL;
 
+/* º¯ÊıËµÃ÷£ºÊä³ö USART ×é¼şµ÷ÊÔÕï¶ÏĞÅÏ¢¡£ */
 static void periph_uart_report(const char *message) {
     OSAL_DEBUG_REPORT("usart", message);
 }
 
+/* º¯ÊıËµÃ÷£º½« USART ¶ÔÏó¹ÒÈë»î¶¯Á´±í¡£ */
 static void periph_uart_link(periph_uart_t *uart) {
     uart->next = s_uart_list;
     s_uart_list = uart;
 }
 
+/* º¯ÊıËµÃ÷£º¼ì²é USART ¾ä±úÊÇ·ñÈÔÔÚ»î¶¯Á´±íÖĞ¡£ */
 static bool periph_uart_contains(periph_uart_t *uart) {
     periph_uart_t *current = s_uart_list;
 
@@ -36,6 +39,7 @@ static bool periph_uart_contains(periph_uart_t *uart) {
     return false;
 }
 
+/* º¯ÊıËµÃ÷£º½« USART ¶ÔÏó´Ó»î¶¯Á´±íÖĞÕª³ı¡£ */
 static bool periph_uart_unlink(periph_uart_t *uart) {
     periph_uart_t *prev = NULL;
     periph_uart_t *current = s_uart_list;
@@ -57,6 +61,7 @@ static bool periph_uart_unlink(periph_uart_t *uart) {
     return false;
 }
 
+/* º¯ÊıËµÃ÷£ºĞ£Ñé USART ¾ä±úÊÇ·ñÓĞĞ§¡£ */
 static bool periph_uart_validate_handle(const periph_uart_t *uart) {
     if (uart == NULL) {
         return false;
@@ -70,6 +75,7 @@ static bool periph_uart_validate_handle(const periph_uart_t *uart) {
     return true;
 }
 
+/* º¯ÊıËµÃ÷£º´´½¨ USART ÇÅ½Ó¶ÔÏó¡£ */
 periph_uart_t *periph_uart_create(const periph_uart_bridge_t *bridge, void *context) {
     periph_uart_t *uart;
 
@@ -94,6 +100,7 @@ periph_uart_t *periph_uart_create(const periph_uart_bridge_t *bridge, void *cont
     return uart;
 }
 
+/* º¯ÊıËµÃ÷£ºÏú»Ù USART ÇÅ½Ó¶ÔÏó¡£ */
 void periph_uart_destroy(periph_uart_t *uart) {
     if (uart == NULL) {
         return;
@@ -114,6 +121,7 @@ void periph_uart_destroy(periph_uart_t *uart) {
     osal_mem_free(uart);
 }
 
+/* º¯ÊıËµÃ÷£ºÍ¨¹ıÇÅ½Ó½Ó¿Ú·¢ËÍÒ»¸ö×Ö½Ú¡£ */
 osal_status_t periph_uart_write_byte(periph_uart_t *uart, uint8_t byte) {
     if (!periph_uart_validate_handle(uart)) {
         return OSAL_ERR_PARAM;
@@ -124,6 +132,7 @@ osal_status_t periph_uart_write_byte(periph_uart_t *uart, uint8_t byte) {
     return uart->bridge->write_byte(uart->context, byte);
 }
 
+/* º¯ÊıËµÃ÷£ºÍ¨¹ıÇÅ½Ó½Ó¿Ú·¢ËÍÒ»¶Î×Ö½ÚÁ÷¡£ */
 osal_status_t periph_uart_write(periph_uart_t *uart, const uint8_t *data, uint32_t length) {
     osal_status_t status;
     uint32_t i;
@@ -142,6 +151,7 @@ osal_status_t periph_uart_write(periph_uart_t *uart, const uint8_t *data, uint32
     return OSAL_OK;
 }
 
+/* º¯ÊıËµÃ÷£ºÍ¨¹ıÇÅ½Ó½Ó¿Ú·¢ËÍÒ»¸ö×Ö·û´®¡£ */
 osal_status_t periph_uart_write_string(periph_uart_t *uart, const char *str) {
     const char *cursor;
 
@@ -161,6 +171,7 @@ osal_status_t periph_uart_write_string(periph_uart_t *uart, const char *str) {
     return OSAL_OK;
 }
 
+/* º¯ÊıËµÃ÷£º½«Ö¸¶¨ USART ¶ÔÏó°ó¶¨Îªµ±Ç°¿ØÖÆÌ¨ºó¶Ë¡£ */
 osal_status_t periph_uart_bind_console(periph_uart_t *uart) {
     if (osal_irq_is_in_isr()) {
         periph_uart_report("bind_console is not allowed in ISR context");
@@ -180,10 +191,12 @@ osal_status_t periph_uart_bind_console(periph_uart_t *uart) {
     return OSAL_OK;
 }
 
+/* º¯ÊıËµÃ÷£º»ñÈ¡µ±Ç°ÒÑ°ó¶¨µÄ¿ØÖÆÌ¨ USART ¶ÔÏó¡£ */
 periph_uart_t *periph_uart_get_console(void) {
     return s_console_uart;
 }
 
+/* º¯ÊıËµÃ÷£ºÎª±ê×¼Êä³öÖØ¶¨ÏòÌá¹©µ¥×Ö·û·¢ËÍ¡£ */
 int periph_uart_fputc(int ch, FILE *f) {
     (void)f;
 

@@ -1,4 +1,4 @@
-ï»¿#include "osal.h"
+#include "osal.h"
 
 #if OSAL_CFG_ENABLE_FLASH
 
@@ -14,15 +14,18 @@ struct periph_flash {
 
 static periph_flash_t *s_flash_list = NULL;
 
+/* º¯ÊıËµÃ÷£ºÊä³ö Flash ×é¼şµ÷ÊÔÕï¶ÏĞÅÏ¢¡£ */
 static void periph_flash_report(const char *message) {
     OSAL_DEBUG_REPORT("flash", message);
 }
 
+/* º¯ÊıËµÃ÷£º½« Flash ¶ÔÏó¹ÒÈë»î¶¯Á´±í¡£ */
 static void periph_flash_link(periph_flash_t *flash) {
     flash->next = s_flash_list;
     s_flash_list = flash;
 }
 
+/* º¯ÊıËµÃ÷£º¼ì²é Flash ¾ä±úÊÇ·ñÈÔÔÚ»î¶¯Á´±íÖĞ¡£ */
 static bool periph_flash_contains(periph_flash_t *flash) {
     periph_flash_t *current = s_flash_list;
 
@@ -36,6 +39,7 @@ static bool periph_flash_contains(periph_flash_t *flash) {
     return false;
 }
 
+/* º¯ÊıËµÃ÷£º½« Flash ¶ÔÏó´Ó»î¶¯Á´±íÖĞÕª³ı¡£ */
 static bool periph_flash_unlink(periph_flash_t *flash) {
     periph_flash_t *prev = NULL;
     periph_flash_t *current = s_flash_list;
@@ -57,6 +61,7 @@ static bool periph_flash_unlink(periph_flash_t *flash) {
     return false;
 }
 
+/* º¯ÊıËµÃ÷£ºĞ£Ñé Flash ¾ä±úÊÇ·ñÓĞĞ§¡£ */
 static bool periph_flash_validate_handle(const periph_flash_t *flash) {
     if (flash == NULL) {
         return false;
@@ -70,6 +75,7 @@ static bool periph_flash_validate_handle(const periph_flash_t *flash) {
     return true;
 }
 
+/* º¯ÊıËµÃ÷£º´´½¨ Flash ÇÅ½Ó¶ÔÏó¡£ */
 periph_flash_t *periph_flash_create(const periph_flash_bridge_t *bridge, void *context) {
     periph_flash_t *flash;
 
@@ -94,6 +100,7 @@ periph_flash_t *periph_flash_create(const periph_flash_bridge_t *bridge, void *c
     return flash;
 }
 
+/* º¯ÊıËµÃ÷£ºÏú»Ù Flash ÇÅ½Ó¶ÔÏó¡£ */
 void periph_flash_destroy(periph_flash_t *flash) {
     if (flash == NULL) {
         return;
@@ -109,6 +116,7 @@ void periph_flash_destroy(periph_flash_t *flash) {
     osal_mem_free(flash);
 }
 
+/* º¯ÊıËµÃ÷£ºµ÷ÓÃµ×²ãÇÅ½Ó½âËø Flash¡£ */
 osal_status_t periph_flash_unlock(periph_flash_t *flash) {
     if (!periph_flash_validate_handle(flash)) {
         return OSAL_ERR_PARAM;
@@ -119,6 +127,7 @@ osal_status_t periph_flash_unlock(periph_flash_t *flash) {
     return flash->bridge->unlock(flash->context);
 }
 
+/* º¯ÊıËµÃ÷£ºµ÷ÓÃµ×²ãÇÅ½ÓÖØĞÂËø¶¨ Flash¡£ */
 osal_status_t periph_flash_lock(periph_flash_t *flash) {
     if (!periph_flash_validate_handle(flash)) {
         return OSAL_ERR_PARAM;
@@ -129,6 +138,7 @@ osal_status_t periph_flash_lock(periph_flash_t *flash) {
     return flash->bridge->lock(flash->context);
 }
 
+/* º¯ÊıËµÃ÷£º²Á³ıÖ¸¶¨µØÖ··¶Î§ÄÚµÄ Flash ¿Õ¼ä¡£ */
 osal_status_t periph_flash_erase(periph_flash_t *flash, uint32_t address, uint32_t length) {
     if ((!periph_flash_validate_handle(flash)) || (length == 0U)) {
         return OSAL_ERR_PARAM;
@@ -139,6 +149,7 @@ osal_status_t periph_flash_erase(periph_flash_t *flash, uint32_t address, uint32
     return flash->bridge->erase(flash->context, address, length);
 }
 
+/* º¯ÊıËµÃ÷£º´Ó Flash ¶ÁÈ¡Ò»¶ÎÊı¾İµ½»º³åÇø¡£ */
 osal_status_t periph_flash_read(periph_flash_t *flash, uint32_t address, uint8_t *data, uint32_t length) {
     if ((!periph_flash_validate_handle(flash)) || (data == NULL)) {
         return OSAL_ERR_PARAM;
@@ -156,6 +167,7 @@ osal_status_t periph_flash_read(periph_flash_t *flash, uint32_t address, uint8_t
     return OSAL_OK;
 }
 
+/* º¯ÊıËµÃ÷£º°´ 8 Î»¿í¶ÈĞ´ÈëÒ»¸ö Flash Êı¾İµ¥Ôª¡£ */
 osal_status_t periph_flash_write_u8(periph_flash_t *flash, uint32_t address, uint8_t value) {
     if (!periph_flash_validate_handle(flash)) {
         return OSAL_ERR_PARAM;
@@ -166,6 +178,7 @@ osal_status_t periph_flash_write_u8(periph_flash_t *flash, uint32_t address, uin
     return flash->bridge->write_u8(flash->context, address, value);
 }
 
+/* º¯ÊıËµÃ÷£º°´ 16 Î»¿í¶ÈĞ´ÈëÒ»¸ö Flash Êı¾İµ¥Ôª¡£ */
 osal_status_t periph_flash_write_u16(periph_flash_t *flash, uint32_t address, uint16_t value) {
     if (!periph_flash_validate_handle(flash)) {
         return OSAL_ERR_PARAM;
@@ -176,6 +189,7 @@ osal_status_t periph_flash_write_u16(periph_flash_t *flash, uint32_t address, ui
     return flash->bridge->write_u16(flash->context, address, value);
 }
 
+/* º¯ÊıËµÃ÷£º°´ 32 Î»¿í¶ÈĞ´ÈëÒ»¸ö Flash Êı¾İµ¥Ôª¡£ */
 osal_status_t periph_flash_write_u32(periph_flash_t *flash, uint32_t address, uint32_t value) {
     if (!periph_flash_validate_handle(flash)) {
         return OSAL_ERR_PARAM;
@@ -186,6 +200,7 @@ osal_status_t periph_flash_write_u32(periph_flash_t *flash, uint32_t address, ui
     return flash->bridge->write_u32(flash->context, address, value);
 }
 
+/* º¯ÊıËµÃ÷£º°´ 64 Î»¿í¶ÈĞ´ÈëÒ»¸ö Flash Êı¾İµ¥Ôª¡£ */
 osal_status_t periph_flash_write_u64(periph_flash_t *flash, uint32_t address, uint64_t value) {
     if (!periph_flash_validate_handle(flash)) {
         return OSAL_ERR_PARAM;
@@ -229,6 +244,7 @@ static osal_status_t periph_flash_write_step(periph_flash_t *flash, uint32_t add
     return OSAL_ERR_RESOURCE;
 }
 
+/* º¯ÊıËµÃ÷£º°´ÇÅ½ÓÖ§³ÖµÄĞ´Èë¿í¶ÈĞ´ÈëÒ»¶ÎÊı¾İ¡£ */
 osal_status_t periph_flash_write(periph_flash_t *flash, uint32_t address, const uint8_t *data, uint32_t length) {
     osal_status_t status;
     uint32_t offset = 0U;
