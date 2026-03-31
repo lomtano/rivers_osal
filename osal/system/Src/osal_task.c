@@ -1,12 +1,8 @@
 ﻿#include "../Inc/osal_task.h"
 #include "../Inc/osal_mem.h"
 #include "../Inc/osal_timer.h"
+#include "../Inc/osal_irq.h"
 
-/*
- * 低优先级任务不会每轮都扫描。
- * 这样可以在裸机轮询框架里，优先保证高/中优先级短任务的响应速度，
- * 同时也给低优先级任务保留固定的运行机会，避免长期饿死。
- */
 #ifndef OSAL_TASK_LOW_SCAN_PERIOD
 #define OSAL_TASK_LOW_SCAN_PERIOD 4U
 #endif
@@ -28,12 +24,14 @@ static uint32_t s_low_scan_count = 0U;
 
 static void osal_run_internal(osal_task_t *skip_task);
 
-/* 判断优先级参数是否合法。 */
+static void osal_task_report(const char *message) {
+    OSAL_DEBUG_REPORT("task", message);
+}
+
 static bool osal_task_priority_is_valid(osal_task_priority_t priority) {
     return ((uint32_t)priority < (uint32_t)OSAL_TASK_PRIORITY_COUNT);
 }
 
-/* 判断某个任务是否已经挂在任务链表里。 */
 static bool osal_task_contains(osal_task_t *task) {
     uint32_t priority_idx;
 
@@ -57,7 +55,6 @@ static bool osal_task_contains(osal_task_t *task) {
     return false;
 }
 
-/* 将任务追加到对应优先级链表尾部，保持同级任务创建顺序。 */
 static void osal_task_list_append(osal_task_t **head, osal_task_t *task) {
     osal_task_t *current;
 
@@ -78,7 +75,6 @@ static void osal_task_list_append(osal_task_t **head, osal_task_t *task) {
     current->next = task;
 }
 
-/* 从对应优先级链表中移除任务。 */
 static bool osal_task_list_remove(osal_task_t **head, osal_task_t *task) {
     osal_task_t *prev = NULL;
     osal_task_t *current;
@@ -105,7 +101,6 @@ static bool osal_task_list_remove(osal_task_t **head, osal_task_t *task) {
     return false;
 }
 
-/* 对某个优先级链表执行一次扫描，返回这一轮是否真的运行过任务。 */
 static bool osal_run_priority_list(osal_task_t *head, osal_task_t *skip_task, uint32_t now_ms) {
     osal_task_t *outer_task = s_current_task;
     osal_task_t *task = head;
@@ -120,8 +115,8 @@ static bool osal_run_priority_list(osal_task_t *head, osal_task_t *skip_task, ui
             continue;
         }
 
-        if (t->state == OSAL_TASK_BLOCKED &&
-            (uint32_t)(now_ms - t->sleep_start_ms) >= t->sleep_timeout_ms) {
+        if ((t->state == OSAL_TASK_BLOCKED) &&
+            ((uint32_t)(now_ms - t->sleep_start_ms) >= t->sleep_timeout_ms)) {
             t->state = OSAL_TASK_READY;
         }
 
@@ -146,7 +141,12 @@ static bool osal_run_priority_list(osal_task_t *head, osal_task_t *skip_task, ui
 osal_task_t *osal_task_create(osal_task_fn_t fn, void *arg, osal_task_priority_t priority) {
     osal_task_t *task;
 
+    if (osal_irq_is_in_isr()) {
+        osal_task_report("create is not allowed in ISR context");
+        return NULL;
+    }
     if ((fn == NULL) || !osal_task_priority_is_valid(priority)) {
+        osal_task_report("create called with invalid function or priority");
         return NULL;
     }
 
@@ -169,12 +169,21 @@ osal_task_t *osal_task_create(osal_task_fn_t fn, void *arg, osal_task_priority_t
 void osal_task_delete(osal_task_t *task) {
     osal_task_priority_t priority;
 
-    if ((task == NULL) || !osal_task_priority_is_valid(task->priority)) {
+    if (task == NULL) {
+        return;
+    }
+    if (osal_irq_is_in_isr()) {
+        osal_task_report("delete is not allowed in ISR context");
+        return;
+    }
+    if (!osal_task_contains(task)) {
+        osal_task_report("delete called with inactive task handle");
         return;
     }
 
     priority = task->priority;
     if (!osal_task_list_remove(&s_task_lists[priority], task)) {
+        osal_task_report("delete failed to unlink task handle");
         return;
     }
 
@@ -185,7 +194,12 @@ void osal_task_delete(osal_task_t *task) {
 }
 
 osal_status_t osal_task_start(osal_task_t *task) {
+    if (osal_irq_is_in_isr()) {
+        osal_task_report("start is not allowed in ISR context");
+        return OSAL_ERR_ISR;
+    }
     if (!osal_task_contains(task)) {
+        osal_task_report("start called with inactive task handle");
         return OSAL_ERR_PARAM;
     }
 
@@ -194,7 +208,12 @@ osal_status_t osal_task_start(osal_task_t *task) {
 }
 
 osal_status_t osal_task_stop(osal_task_t *task) {
+    if (osal_irq_is_in_isr()) {
+        osal_task_report("stop is not allowed in ISR context");
+        return OSAL_ERR_ISR;
+    }
     if (!osal_task_contains(task)) {
+        osal_task_report("stop called with inactive task handle");
         return OSAL_ERR_PARAM;
     }
 
@@ -203,11 +222,17 @@ osal_status_t osal_task_stop(osal_task_t *task) {
 }
 
 osal_status_t osal_task_sleep(osal_task_t *task, uint32_t ms) {
+    if (osal_irq_is_in_isr()) {
+        osal_task_report("sleep is not allowed in ISR context");
+        return OSAL_ERR_ISR;
+    }
+
     if (task == NULL) {
         task = s_current_task;
     }
 
     if (!osal_task_contains(task)) {
+        osal_task_report("sleep called with inactive task handle");
         return OSAL_ERR_PARAM;
     }
 
@@ -245,6 +270,11 @@ static void osal_run_internal(osal_task_t *skip_task) {
 }
 
 void osal_task_yield(void) {
+    if (osal_irq_is_in_isr()) {
+        osal_task_report("yield is not allowed in ISR context");
+        return;
+    }
+
     osal_timer_poll();
     if (s_current_task == NULL) {
         return;
@@ -253,8 +283,13 @@ void osal_task_yield(void) {
 }
 
 void osal_run(void) {
+    if (osal_irq_is_in_isr()) {
+        osal_task_report("osal_run is not allowed in ISR context");
+        return;
+    }
+
     osal_timer_poll();
-    if (s_scheduler_depth != 0U && s_current_task == NULL) {
+    if ((s_scheduler_depth != 0U) && (s_current_task == NULL)) {
         return;
     }
     osal_run_internal(NULL);

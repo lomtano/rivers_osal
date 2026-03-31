@@ -1,16 +1,84 @@
-﻿#include "../Inc/periph_flash.h"
+﻿#include "osal.h"
+
+#if OSAL_CFG_ENABLE_FLASH
+
+#include "../Inc/periph_flash.h"
 #include "osal_mem.h"
 #include <string.h>
 
 struct periph_flash {
     const periph_flash_bridge_t *bridge;
     void *context;
+    struct periph_flash *next;
 };
+
+static periph_flash_t *s_flash_list = NULL;
+
+static void periph_flash_report(const char *message) {
+    OSAL_DEBUG_REPORT("flash", message);
+}
+
+static void periph_flash_link(periph_flash_t *flash) {
+    flash->next = s_flash_list;
+    s_flash_list = flash;
+}
+
+static bool periph_flash_contains(periph_flash_t *flash) {
+    periph_flash_t *current = s_flash_list;
+
+    while (current != NULL) {
+        if (current == flash) {
+            return true;
+        }
+        current = current->next;
+    }
+
+    return false;
+}
+
+static bool periph_flash_unlink(periph_flash_t *flash) {
+    periph_flash_t *prev = NULL;
+    periph_flash_t *current = s_flash_list;
+
+    while (current != NULL) {
+        if (current == flash) {
+            if (prev == NULL) {
+                s_flash_list = current->next;
+            } else {
+                prev->next = current->next;
+            }
+            current->next = NULL;
+            return true;
+        }
+        prev = current;
+        current = current->next;
+    }
+
+    return false;
+}
+
+static bool periph_flash_validate_handle(const periph_flash_t *flash) {
+    if (flash == NULL) {
+        return false;
+    }
+#if OSAL_CFG_ENABLE_DEBUG
+    if (!periph_flash_contains((periph_flash_t *)flash)) {
+        periph_flash_report("API called with inactive Flash handle");
+        return false;
+    }
+#endif
+    return true;
+}
 
 periph_flash_t *periph_flash_create(const periph_flash_bridge_t *bridge, void *context) {
     periph_flash_t *flash;
 
+    if (osal_irq_is_in_isr()) {
+        periph_flash_report("create is not allowed in ISR context");
+        return NULL;
+    }
     if (bridge == NULL) {
+        periph_flash_report("create called with invalid bridge");
         return NULL;
     }
 
@@ -21,6 +89,8 @@ periph_flash_t *periph_flash_create(const periph_flash_bridge_t *bridge, void *c
 
     flash->bridge = bridge;
     flash->context = context;
+    flash->next = NULL;
+    periph_flash_link(flash);
     return flash;
 }
 
@@ -28,32 +98,49 @@ void periph_flash_destroy(periph_flash_t *flash) {
     if (flash == NULL) {
         return;
     }
+    if (osal_irq_is_in_isr()) {
+        periph_flash_report("destroy is not allowed in ISR context");
+        return;
+    }
+    if (!periph_flash_unlink(flash)) {
+        periph_flash_report("destroy called with inactive Flash handle");
+        return;
+    }
     osal_mem_free(flash);
 }
 
 osal_status_t periph_flash_unlock(periph_flash_t *flash) {
-    if (flash == NULL || flash->bridge == NULL || flash->bridge->unlock == NULL) {
+    if (!periph_flash_validate_handle(flash)) {
+        return OSAL_ERR_PARAM;
+    }
+    if ((flash->bridge == NULL) || (flash->bridge->unlock == NULL)) {
         return OSAL_ERR_PARAM;
     }
     return flash->bridge->unlock(flash->context);
 }
 
 osal_status_t periph_flash_lock(periph_flash_t *flash) {
-    if (flash == NULL || flash->bridge == NULL || flash->bridge->lock == NULL) {
+    if (!periph_flash_validate_handle(flash)) {
+        return OSAL_ERR_PARAM;
+    }
+    if ((flash->bridge == NULL) || (flash->bridge->lock == NULL)) {
         return OSAL_ERR_PARAM;
     }
     return flash->bridge->lock(flash->context);
 }
 
 osal_status_t periph_flash_erase(periph_flash_t *flash, uint32_t address, uint32_t length) {
-    if (flash == NULL || flash->bridge == NULL || flash->bridge->erase == NULL || length == 0U) {
+    if ((!periph_flash_validate_handle(flash)) || (length == 0U)) {
+        return OSAL_ERR_PARAM;
+    }
+    if ((flash->bridge == NULL) || (flash->bridge->erase == NULL)) {
         return OSAL_ERR_PARAM;
     }
     return flash->bridge->erase(flash->context, address, length);
 }
 
 osal_status_t periph_flash_read(periph_flash_t *flash, uint32_t address, uint8_t *data, uint32_t length) {
-    if (flash == NULL || data == NULL) {
+    if ((!periph_flash_validate_handle(flash)) || (data == NULL)) {
         return OSAL_ERR_PARAM;
     }
 
@@ -61,7 +148,7 @@ osal_status_t periph_flash_read(periph_flash_t *flash, uint32_t address, uint8_t
         return OSAL_OK;
     }
 
-    if (flash->bridge != NULL && flash->bridge->read != NULL) {
+    if ((flash->bridge != NULL) && (flash->bridge->read != NULL)) {
         return flash->bridge->read(flash->context, address, data, length);
     }
 
@@ -70,34 +157,47 @@ osal_status_t periph_flash_read(periph_flash_t *flash, uint32_t address, uint8_t
 }
 
 osal_status_t periph_flash_write_u8(periph_flash_t *flash, uint32_t address, uint8_t value) {
-    if (flash == NULL || flash->bridge == NULL || flash->bridge->write_u8 == NULL) {
+    if (!periph_flash_validate_handle(flash)) {
+        return OSAL_ERR_PARAM;
+    }
+    if ((flash->bridge == NULL) || (flash->bridge->write_u8 == NULL)) {
         return OSAL_ERR_PARAM;
     }
     return flash->bridge->write_u8(flash->context, address, value);
 }
 
 osal_status_t periph_flash_write_u16(periph_flash_t *flash, uint32_t address, uint16_t value) {
-    if (flash == NULL || flash->bridge == NULL || flash->bridge->write_u16 == NULL) {
+    if (!periph_flash_validate_handle(flash)) {
+        return OSAL_ERR_PARAM;
+    }
+    if ((flash->bridge == NULL) || (flash->bridge->write_u16 == NULL)) {
         return OSAL_ERR_PARAM;
     }
     return flash->bridge->write_u16(flash->context, address, value);
 }
 
 osal_status_t periph_flash_write_u32(periph_flash_t *flash, uint32_t address, uint32_t value) {
-    if (flash == NULL || flash->bridge == NULL || flash->bridge->write_u32 == NULL) {
+    if (!periph_flash_validate_handle(flash)) {
+        return OSAL_ERR_PARAM;
+    }
+    if ((flash->bridge == NULL) || (flash->bridge->write_u32 == NULL)) {
         return OSAL_ERR_PARAM;
     }
     return flash->bridge->write_u32(flash->context, address, value);
 }
 
 osal_status_t periph_flash_write_u64(periph_flash_t *flash, uint32_t address, uint64_t value) {
-    if (flash == NULL || flash->bridge == NULL || flash->bridge->write_u64 == NULL) {
+    if (!periph_flash_validate_handle(flash)) {
+        return OSAL_ERR_PARAM;
+    }
+    if ((flash->bridge == NULL) || (flash->bridge->write_u64 == NULL)) {
         return OSAL_ERR_PARAM;
     }
     return flash->bridge->write_u64(flash->context, address, value);
 }
 
-static osal_status_t periph_flash_write_step(periph_flash_t *flash, uint32_t address, const uint8_t *data, uint32_t remaining, uint32_t *consumed) {
+static osal_status_t periph_flash_write_step(periph_flash_t *flash, uint32_t address, const uint8_t *data,
+                                             uint32_t remaining, uint32_t *consumed) {
     uint64_t value64;
     uint32_t value32;
     uint16_t value16;
@@ -133,7 +233,10 @@ osal_status_t periph_flash_write(periph_flash_t *flash, uint32_t address, const 
     osal_status_t status;
     uint32_t offset = 0U;
 
-    if (flash == NULL || flash->bridge == NULL || data == NULL) {
+    if ((!periph_flash_validate_handle(flash)) || (data == NULL)) {
+        return OSAL_ERR_PARAM;
+    }
+    if (flash->bridge == NULL) {
         return OSAL_ERR_PARAM;
     }
 
@@ -151,3 +254,5 @@ osal_status_t periph_flash_write(periph_flash_t *flash, uint32_t address, const 
 
     return OSAL_OK;
 }
+
+#endif /* OSAL_CFG_ENABLE_FLASH */

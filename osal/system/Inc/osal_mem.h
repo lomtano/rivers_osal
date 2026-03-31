@@ -1,4 +1,4 @@
-#ifndef OSAL_MEM_H
+﻿#ifndef OSAL_MEM_H
 #define OSAL_MEM_H
 
 #include <stdint.h>
@@ -8,7 +8,22 @@
 extern "C" {
 #endif
 
-typedef struct osal_mempool osal_mempool_t; /* 不透明内存池句柄 */
+typedef struct osal_mempool osal_mempool_t;
+
+/*
+ * 内存模块契约：
+ * 1. osal_mem_alloc() 返回的块必须由 osal_mem_free() 归还。
+ * 2. osal_mempool_create() 返回的句柄所有权归调用方，delete() 后句柄立即失效。
+ * 3. osal_mempool_alloc() 返回的块必须归还给同一个 mempool。
+ * 4. free(NULL) / delete(NULL) 是安全空操作。
+ * 5. debug 打开时，可检测到的 double free、非法 mempool 句柄、错误归还块，
+ *    会通过 OSAL_DEBUG_HOOK 报告。
+ *
+ * 接口能力矩阵：
+ * - mem_init / mem_alloc / mem_free / mem_get_free_size: 任务态
+ * - mempool_create / mempool_delete: 任务态
+ * - mempool_alloc / mempool_free: 任务态 / ISR
+ */
 
 #ifndef OSAL_HEAP_SIZE
 #define OSAL_HEAP_SIZE 4096U
@@ -35,18 +50,18 @@ void *osal_mem_alloc(uint32_t size);
 void osal_mem_free(void *ptr);
 
 /**
- * @brief 查询当前可用的空闲堆空间。
+ * @brief 查询当前可用的堆空间。
  * @return 当前所有空闲块总大小，单位为字节。
  */
 uint32_t osal_mem_get_free_size(void);
 
-/* pool_buffer 至少需要 max(block_size, sizeof(void *)) * block_count 字节。 */
 /**
  * @brief 基于用户缓冲区创建一个定长内存池。
  * @param pool_buffer 内存池底层缓冲区。
  * @param block_size 每个块的大小。
  * @param block_count 块数量。
  * @return 成功返回内存池句柄，失败返回 NULL。
+ * @note pool_buffer 至少需要 max(block_size, sizeof(void *)) * block_count 字节。
  */
 osal_mempool_t *osal_mempool_create(void *pool_buffer, uint32_t block_size, uint32_t block_count);
 

@@ -5,6 +5,10 @@
 #include <stdio.h>
 #include "osal.h"
 
+#if !OSAL_CFG_ENABLE_USART
+#error "OSAL USART component is disabled. Enable OSAL_CFG_ENABLE_USART in osal.h."
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -14,6 +18,21 @@ typedef struct periph_uart periph_uart_t;
 typedef struct {
     osal_status_t (*write_byte)(void *context, uint8_t byte);
 } periph_uart_bridge_t;
+
+/*
+ * USART 组件句柄契约：
+ * 1. create() 成功后，句柄所有权归调用方。
+ * 2. destroy(NULL) 是安全空操作。
+ * 3. destroy() 成功后，句柄立即失效，不能再次 write / bind / destroy。
+ * 4. bind_console() 不转移 USART 对象所有权，只是登记一个“当前控制台后端”。
+ * 5. debug 打开时，可检测到的重复 destroy、非法句柄、重复绑定、控制台替换，
+ *    会通过 OSAL_DEBUG_HOOK 报告。
+ *
+ * 接口能力矩阵：
+ * - create / destroy / bind_console: 任务态
+ * - get_console: 任务态 / ISR
+ * - write_byte / write / write_string / fputc: 取决于桥接回调能力，默认按任务态使用
+ */
 
 /**
  * @brief 基于“发送单字节”桥接回调创建一个 USART 组件实例。

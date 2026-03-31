@@ -1,4 +1,8 @@
-﻿#include "../Inc/osal_queue.h"
+﻿#include "../Inc/osal.h"
+
+#if OSAL_CFG_ENABLE_QUEUE
+
+#include "../Inc/osal_queue.h"
 #include "../Inc/osal_mem.h"
 #include "../Inc/osal_task.h"
 #include <stdbool.h>
@@ -16,6 +20,36 @@ struct osal_queue {
 };
 
 static osal_queue_t *s_queue_list = NULL;
+
+static void osal_queue_report(const char *message) {
+    OSAL_DEBUG_REPORT("queue", message);
+}
+
+static bool osal_queue_contains(osal_queue_t *q) {
+    osal_queue_t *current = s_queue_list;
+
+    while (current != NULL) {
+        if (current == q) {
+            return true;
+        }
+        current = current->next;
+    }
+
+    return false;
+}
+
+static bool osal_queue_validate_handle(const osal_queue_t *q) {
+    if (q == NULL) {
+        return false;
+    }
+#if OSAL_CFG_ENABLE_DEBUG
+    if (!osal_queue_contains((osal_queue_t *)q)) {
+        osal_queue_report("API called with inactive queue handle");
+        return false;
+    }
+#endif
+    return true;
+}
 
 static bool osal_queue_storage_size(uint32_t length, uint32_t item_size, uint32_t *total_size) {
     uint64_t bytes;
@@ -68,6 +102,10 @@ osal_queue_t *osal_queue_create(uint32_t length, uint32_t item_size) {
     uint32_t total_size;
     uint8_t *storage;
 
+    if (osal_irq_is_in_isr()) {
+        osal_queue_report("create is not allowed in ISR context");
+        return NULL;
+    }
     if (!osal_queue_storage_size(length, item_size, &total_size)) {
         return NULL;
     }
@@ -83,6 +121,10 @@ osal_queue_t *osal_queue_create(uint32_t length, uint32_t item_size) {
 osal_queue_t *osal_queue_create_static(void *buffer, uint32_t length, uint32_t item_size) {
     uint32_t total_size;
 
+    if (osal_irq_is_in_isr()) {
+        osal_queue_report("create_static is not allowed in ISR context");
+        return NULL;
+    }
     if ((buffer == NULL) || !osal_queue_storage_size(length, item_size, &total_size)) {
         return NULL;
     }
@@ -96,6 +138,10 @@ void osal_queue_delete(osal_queue_t *q) {
     osal_queue_t *current = s_queue_list;
 
     if (q == NULL) {
+        return;
+    }
+    if (osal_irq_is_in_isr()) {
+        osal_queue_report("delete is not allowed in ISR context");
         return;
     }
 
@@ -116,13 +162,15 @@ void osal_queue_delete(osal_queue_t *q) {
         prev = current;
         current = current->next;
     }
+
+    osal_queue_report("delete called with inactive queue handle");
 }
 
 uint32_t osal_queue_get_count(const osal_queue_t *q) {
     uint32_t irq_state;
     uint32_t count;
 
-    if (q == NULL) {
+    if (!osal_queue_validate_handle(q)) {
         return 0U;
     }
 
@@ -158,7 +206,7 @@ osal_status_t osal_queue_send(osal_queue_t *q, const void *item) {
     uint32_t irq_state;
     osal_status_t res;
 
-    if ((q == NULL) || (item == NULL)) {
+    if ((!osal_queue_validate_handle(q)) || (item == NULL)) {
         return OSAL_ERR_PARAM;
     }
 
@@ -172,7 +220,7 @@ osal_status_t osal_queue_recv(osal_queue_t *q, void *item) {
     uint32_t irq_state;
     osal_status_t res;
 
-    if ((q == NULL) || (item == NULL)) {
+    if ((!osal_queue_validate_handle(q)) || (item == NULL)) {
         return OSAL_ERR_PARAM;
     }
 
@@ -185,10 +233,11 @@ osal_status_t osal_queue_recv(osal_queue_t *q, void *item) {
 osal_status_t osal_queue_send_timeout(osal_queue_t *q, const void *item, uint32_t timeout_ms) {
     uint32_t start;
 
-    if ((q == NULL) || (item == NULL)) {
+    if ((!osal_queue_validate_handle(q)) || (item == NULL)) {
         return OSAL_ERR_PARAM;
     }
     if (osal_irq_is_in_isr()) {
+        osal_queue_report("send_timeout is not allowed in ISR context");
         return OSAL_ERR_ISR;
     }
 
@@ -209,10 +258,11 @@ osal_status_t osal_queue_send_timeout(osal_queue_t *q, const void *item, uint32_
 osal_status_t osal_queue_recv_timeout(osal_queue_t *q, void *item, uint32_t timeout_ms) {
     uint32_t start;
 
-    if ((q == NULL) || (item == NULL)) {
+    if ((!osal_queue_validate_handle(q)) || (item == NULL)) {
         return OSAL_ERR_PARAM;
     }
     if (osal_irq_is_in_isr()) {
+        osal_queue_report("recv_timeout is not allowed in ISR context");
         return OSAL_ERR_ISR;
     }
 
@@ -231,7 +281,7 @@ osal_status_t osal_queue_recv_timeout(osal_queue_t *q, void *item, uint32_t time
 }
 
 osal_status_t osal_queue_send_from_isr(osal_queue_t *q, const void *item) {
-    if ((q == NULL) || (item == NULL)) {
+    if ((!osal_queue_validate_handle(q)) || (item == NULL)) {
         return OSAL_ERR_PARAM;
     }
 
@@ -239,9 +289,11 @@ osal_status_t osal_queue_send_from_isr(osal_queue_t *q, const void *item) {
 }
 
 osal_status_t osal_queue_recv_from_isr(osal_queue_t *q, void *item) {
-    if ((q == NULL) || (item == NULL)) {
+    if ((!osal_queue_validate_handle(q)) || (item == NULL)) {
         return OSAL_ERR_PARAM;
     }
 
     return osal_queue_dequeue(q, item);
 }
+
+#endif /* OSAL_CFG_ENABLE_QUEUE */

@@ -9,8 +9,19 @@ extern "C" {
 #endif
 
 typedef void (*osal_task_fn_t)(void *arg);
+typedef struct osal_task osal_task_t;
 
-typedef struct osal_task osal_task_t; /* 不透明任务句柄 */
+/*
+ * 任务句柄契约：
+ * 1. osal_task_create() 成功后，句柄所有权归调用方。
+ * 2. osal_task_delete(NULL) 是安全空操作。
+ * 3. osal_task_delete() 成功后，句柄立即失效，不能再次 start / stop / sleep / delete。
+ * 4. debug 打开时，可检测到的重复 delete / 非法句柄会通过 OSAL_DEBUG_HOOK 报告。
+ *
+ * 接口能力矩阵：
+ * - create / delete / start / stop / sleep / yield / run: 任务态或主循环
+ * - ISR: 不支持
+ */
 
 /**
  * @brief 任务优先级。

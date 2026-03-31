@@ -3,9 +3,15 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#include "osal_platform.h"
+#include "osal.h"
+
+#if OSAL_CFG_ENABLE_USART
 #include "periph_uart.h"
+#endif
+
+#if OSAL_CFG_ENABLE_FLASH
 #include "periph_flash.h"
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -37,11 +43,6 @@ extern "C" {
  * 这里只耦合两件事：
  * 1. 控制台串口上下文对象是谁，例如 UART 句柄
  * 2. 发送单字节时，要调用哪个底层 SDK API
- *
- * 例如：
- * #define OSAL_PLATFORM_UART_CONTEXT (&huart1)
- * #define OSAL_PLATFORM_UART_WRITE_BYTE(ctx, byte) \
- *     ((HAL_UART_Transmit((UART_HandleTypeDef *)(ctx), &(byte), 1U, 1000U) == HAL_OK) ? OSAL_OK : OSAL_ERROR)
  */
 #ifndef OSAL_PLATFORM_UART_CONTEXT
 #define OSAL_PLATFORM_UART_CONTEXT NULL
@@ -84,9 +85,6 @@ extern "C" {
  * 3. 当前计数值
  * 4. 当前计数器是否使能
  * 5. 自上次读取以来是否发生过一次归零事件
- *
- * 如果目标 MCU 的系统时基不叫 SysTick，也没关系，
- * 只要能把这 5 个原始能力映射出来即可。
  */
 #ifndef OSAL_PLATFORM_TICK_SOURCE_CLOCK_HZ
 #define OSAL_PLATFORM_TICK_SOURCE_CLOCK_HZ() 0U
@@ -117,23 +115,23 @@ extern "C" {
  * - 关全局中断
  * - 开全局中断
  * - 按保存值恢复中断
- *
- * 对 Cortex-M 来说通常会映射到：
- * - __get_IPSR()
- * - __get_PRIMASK()
- * - __disable_irq()
- * - __enable_irq()
  */
 void osal_platform_init(void);
 const osal_tick_source_t *osal_platform_get_tick_source(void);
-periph_uart_t *osal_platform_uart_create(void);
-periph_flash_t *osal_platform_flash_create(void);
 void osal_platform_led1_toggle(void);
 void osal_platform_led2_toggle(void);
 bool osal_irq_is_in_isr(void);
 uint32_t osal_irq_disable(void);
 void osal_irq_enable(void);
 void osal_irq_restore(uint32_t prev_state);
+
+#if OSAL_CFG_ENABLE_USART
+periph_uart_t *osal_platform_uart_create(void);
+#endif
+
+#if OSAL_CFG_ENABLE_FLASH
+periph_flash_t *osal_platform_flash_create(void);
+#endif
 
 #ifdef __cplusplus
 }

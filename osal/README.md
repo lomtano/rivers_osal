@@ -73,4 +73,5 @@ Middleware/osal/
 
 - 移植步骤：`Middleware/osal/PORTING_GUIDE.md`
 - 使用示例：`Middleware/osal/USAGE_EXAMPLES.md`
+- API 能力矩阵：`Middleware/osal/API_CAPABILITY_TABLE.md`
 - 更新日志：`Middleware/osal/CHANGELOG.md`

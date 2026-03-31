@@ -7,9 +7,15 @@
 #include "gpio.h"
 #include "usart.h"
 #include "stm32f4xx_hal.h"
+#include "osal.h"
+
+#if OSAL_CFG_ENABLE_USART
 #include "periph_uart.h"
+#endif
+
+#if OSAL_CFG_ENABLE_FLASH
 #include "periph_flash.h"
-#include "osal_platform.h"
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -110,14 +116,20 @@ extern "C" {
 
 void osal_platform_init(void);
 const osal_tick_source_t *osal_platform_get_tick_source(void);
-periph_uart_t *osal_platform_uart_create(void);
-periph_flash_t *osal_platform_flash_create(void);
 void osal_platform_led1_toggle(void);
 void osal_platform_led2_toggle(void);
 bool osal_irq_is_in_isr(void);
 uint32_t osal_irq_disable(void);
 void osal_irq_enable(void);
 void osal_irq_restore(uint32_t prev_state);
+
+#if OSAL_CFG_ENABLE_USART
+periph_uart_t *osal_platform_uart_create(void);
+#endif
+
+#if OSAL_CFG_ENABLE_FLASH
+periph_flash_t *osal_platform_flash_create(void);
+#endif
 
 #ifdef __cplusplus
 }

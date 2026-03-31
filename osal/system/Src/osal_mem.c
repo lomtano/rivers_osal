@@ -18,12 +18,14 @@ struct osal_mempool {
     uint32_t block_count;
     uint32_t stride;
     void *free_list;
+    struct osal_mempool *next;
 };
 
 static uint8_t *s_heap_buffer = NULL;
 static uint32_t s_heap_size = 0U;
 static osal_heap_block_t *s_free_list = NULL;
 static bool s_heap_ready = false;
+static osal_mempool_t *s_mempool_list = NULL;
 
 typedef union {
     void *align;
@@ -31,6 +33,10 @@ typedef union {
 } osal_default_heap_t;
 
 static osal_default_heap_t s_default_heap;
+
+static void osal_mem_report(const char *message) {
+    OSAL_DEBUG_REPORT("mem", message);
+}
 
 static uint32_t osal_mem_align_up(uint32_t value) {
     uint32_t mask = OSAL_MEM_ALIGN - 1U;
@@ -62,6 +68,68 @@ static void osal_mem_ensure_init(void) {
     if (!s_heap_ready) {
         osal_mem_init(NULL, 0U);
     }
+}
+
+static bool osal_mem_pointer_in_heap(const void *ptr) {
+    const uint8_t *byte_ptr = (const uint8_t *)ptr;
+
+    if ((!s_heap_ready) || (s_heap_buffer == NULL) || (s_heap_size == 0U) || (ptr == NULL)) {
+        return false;
+    }
+
+    return ((byte_ptr >= s_heap_buffer) && (byte_ptr < (s_heap_buffer + s_heap_size)));
+}
+
+static void osal_mempool_link(osal_mempool_t *mp) {
+    mp->next = s_mempool_list;
+    s_mempool_list = mp;
+}
+
+static bool osal_mempool_contains(osal_mempool_t *mp) {
+    osal_mempool_t *current = s_mempool_list;
+
+    while (current != NULL) {
+        if (current == mp) {
+            return true;
+        }
+        current = current->next;
+    }
+
+    return false;
+}
+
+static bool osal_mempool_unlink(osal_mempool_t *mp) {
+    osal_mempool_t *prev = NULL;
+    osal_mempool_t *current = s_mempool_list;
+
+    while (current != NULL) {
+        if (current == mp) {
+            if (prev == NULL) {
+                s_mempool_list = current->next;
+            } else {
+                prev->next = current->next;
+            }
+            current->next = NULL;
+            return true;
+        }
+        prev = current;
+        current = current->next;
+    }
+
+    return false;
+}
+
+static bool osal_mempool_validate_handle(const osal_mempool_t *mp) {
+    if (mp == NULL) {
+        return false;
+    }
+#if OSAL_CFG_ENABLE_DEBUG
+    if (!osal_mempool_contains((osal_mempool_t *)mp)) {
+        osal_mem_report("mempool API called with inactive mempool handle");
+        return false;
+    }
+#endif
+    return true;
 }
 
 void osal_mem_init(void *heap_buffer, uint32_t heap_size) {
@@ -187,6 +255,7 @@ static void osal_mem_insert_free_block(osal_heap_block_t *block) {
 void osal_mem_free(void *ptr) {
     uint32_t irq_state;
     osal_heap_block_t *block;
+    uint8_t *user_ptr;
 
     if (ptr == NULL) {
         return;
@@ -197,8 +266,19 @@ void osal_mem_free(void *ptr) {
         return;
     }
 
-    block = (osal_heap_block_t *)((uint8_t *)ptr - sizeof(osal_heap_block_t));
+    user_ptr = (uint8_t *)ptr;
+    if (!osal_mem_pointer_in_heap(user_ptr) || (user_ptr < (s_heap_buffer + sizeof(osal_heap_block_t)))) {
+        osal_mem_report("free called with pointer outside OSAL heap");
+        return;
+    }
+
+    block = (osal_heap_block_t *)(user_ptr - sizeof(osal_heap_block_t));
+    if (!osal_mem_pointer_in_heap(block)) {
+        osal_mem_report("free called with invalid heap block header");
+        return;
+    }
     if (!osal_heap_block_used(block)) {
+        osal_mem_report("double free or inactive heap block detected");
         return;
     }
 
@@ -231,8 +311,13 @@ uint32_t osal_mem_get_free_size(void) {
 
 osal_mempool_t *osal_mempool_create(void *pool_buffer, uint32_t block_size, uint32_t block_count) {
     osal_mempool_t *mp;
+    uint32_t block;
 
-    if (!pool_buffer || block_size == 0U || block_count == 0U) {
+    if (osal_irq_is_in_isr()) {
+        osal_mem_report("mempool_create is not allowed in ISR context");
+        return NULL;
+    }
+    if ((pool_buffer == NULL) || (block_size == 0U) || (block_count == 0U)) {
         return NULL;
     }
 
@@ -246,18 +331,28 @@ osal_mempool_t *osal_mempool_create(void *pool_buffer, uint32_t block_size, uint
     mp->block_count = block_count;
     mp->stride = (block_size < (uint32_t)sizeof(void *)) ? (uint32_t)sizeof(void *) : osal_mem_align_up(block_size);
     mp->free_list = pool_buffer;
+    mp->next = NULL;
 
-    for (uint32_t block = 0U; block < block_count; ++block) {
+    for (block = 0U; block < block_count; ++block) {
         uint8_t *current = mp->buf + (block * mp->stride);
         uint8_t *next = (block + 1U < block_count) ? (mp->buf + ((block + 1U) * mp->stride)) : NULL;
         *osal_block_next_ptr(current) = next;
     }
 
+    osal_mempool_link(mp);
     return mp;
 }
 
 void osal_mempool_delete(osal_mempool_t *mp) {
     if (mp == NULL) {
+        return;
+    }
+    if (osal_irq_is_in_isr()) {
+        osal_mem_report("mempool_delete is not allowed in ISR context");
+        return;
+    }
+    if (!osal_mempool_unlink(mp)) {
+        osal_mem_report("mempool_delete called with inactive mempool handle");
         return;
     }
     osal_mem_free(mp);
@@ -267,7 +362,10 @@ void *osal_mempool_alloc(osal_mempool_t *mp) {
     void *block;
     uint32_t irq_state;
 
-    if (mp == NULL || mp->free_list == NULL) {
+    if (!osal_mempool_validate_handle(mp)) {
+        return NULL;
+    }
+    if (mp->free_list == NULL) {
         return NULL;
     }
 
@@ -285,19 +383,21 @@ void osal_mempool_free(osal_mempool_t *mp, void *ptr) {
     uint32_t offset;
     uint32_t irq_state;
 
-    if (mp == NULL || ptr == NULL) {
+    if ((!osal_mempool_validate_handle(mp)) || (ptr == NULL)) {
         return;
     }
 
     block = (uint8_t *)ptr;
     start = mp->buf;
     end = mp->buf + (mp->block_count * mp->stride);
-    if (block < start || block >= end) {
+    if ((block < start) || (block >= end)) {
+        osal_mem_report("mempool_free called with pointer outside mempool range");
         return;
     }
 
     offset = (uint32_t)(block - start);
     if ((offset % mp->stride) != 0U) {
+        osal_mem_report("mempool_free called with misaligned block pointer");
         return;
     }
 

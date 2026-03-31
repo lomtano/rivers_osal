@@ -4,6 +4,10 @@
 #include <stdint.h>
 #include "osal.h"
 
+#if !OSAL_CFG_ENABLE_FLASH
+#error "OSAL flash component is disabled. Enable OSAL_CFG_ENABLE_FLASH in osal.h."
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -20,6 +24,20 @@ typedef struct {
     osal_status_t (*write_u32)(void *context, uint32_t address, uint32_t value);
     osal_status_t (*write_u64)(void *context, uint32_t address, uint64_t value);
 } periph_flash_bridge_t;
+
+/*
+ * Flash 组件句柄契约：
+ * 1. create() 成功后，句柄所有权归调用方。
+ * 2. destroy(NULL) 是安全空操作。
+ * 3. destroy() 成功后，句柄立即失效，不能再次 unlock / erase / write / read / destroy。
+ * 4. bridge 和 context 的生命周期由调用方保证，组件不会接管它们的所有权。
+ * 5. debug 打开时，可检测到的重复 destroy、非法句柄会通过 OSAL_DEBUG_HOOK 报告。
+ *
+ * 接口能力矩阵：
+ * - create / destroy: 任务态
+ * - unlock / lock / erase / read / write_xxx / write: 默认按任务态使用
+ * - 是否允许 ISR 使用，取决于底层 Flash SDK 与桥接实现，OSAL 不做默认保证
+ */
 
 /**
  * @brief 基于桥接函数表创建一个 Flash 组件实例。
