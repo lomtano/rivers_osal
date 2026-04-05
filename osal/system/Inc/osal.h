@@ -74,7 +74,7 @@ typedef enum {
  * 3. 推荐在应用层定义类似下面的钩子，再包含 osal.h：
  *      #define OSAL_CFG_ENABLE_DEBUG 1
  *      #define OSAL_DEBUG_HOOK(module, message) \
- *          printf("[OSAL/%s] %s\r\n", module, message)
+ *          my_debug_output((module), (message))
  * 4. OSAL 默认不绑定任何输出后端；RTT、USART、半主机等均由用户自行决定。
  * 5. 如果你没有自定义 OSAL_DEBUG_HOOK，即使打开 debug，系统层也不会主动输出。
  */
@@ -109,7 +109,7 @@ typedef enum {
 
 /**
  * @brief 初始化 OSAL 系统层。
- * @note 该接口会调用平台层初始化钩子，并自动同步当前 Tick 计数源配置。
+ * @note 该接口会调用平台层初始化钩子，自动配置默认系统时基，并同步当前 Tick 计数源配置。
  */
 void osal_init(void);
 
@@ -137,8 +137,41 @@ void osal_tick_handler(void);
 #include "osal_mutex.h"
 #endif
 
+#if OSAL_CFG_ENABLE_USART
+#include "periph_uart.h"
+#endif
+
+#if OSAL_CFG_ENABLE_FLASH
+#include "periph_flash.h"
+#endif
+
+/*
+ * ---------------------------------------------------------------------------
+ * OSAL 应用层便利聚合
+ * ---------------------------------------------------------------------------
+ * 1. 对当前工程来说，main.c 只包含 osal.h 就够了。
+ * 2. 下面这个宏默认指向当前板子的具体适配头文件。
+ * 3. 你移植到别的板子时，只需要把它改成新的平台头文件名即可。
+ * 4. 如果你不想让 osal.h 自动聚合平台头，也可以把
+ *    OSAL_CFG_INCLUDE_PLATFORM_HEADER 改成 0。
+ */
+#ifndef OSAL_CFG_INCLUDE_PLATFORM_HEADER
+#define OSAL_CFG_INCLUDE_PLATFORM_HEADER 1
+#endif
+
+#ifndef OSAL_PLATFORM_HEADER_FILE
+#define OSAL_PLATFORM_HEADER_FILE "osal_platform_stm32f4.h"
+#endif
+
+#if OSAL_CFG_INCLUDE_PLATFORM_HEADER
+#include OSAL_PLATFORM_HEADER_FILE
+#endif
+
 #ifdef __cplusplus
 }
 #endif
 
 #endif /* OSAL_H */
+
+
+

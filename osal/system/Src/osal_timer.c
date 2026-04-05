@@ -42,6 +42,8 @@ static uint32_t s_tick_counter_hz = 0U;
 static uint32_t s_tick_reload_value = 0U;
 static uint32_t s_tick_period_ticks = 0U;
 static uint32_t s_tick_period_us = OSAL_TICK_PERIOD_US;
+static bool s_tick_missing_reported = false;
+static bool s_tick_invalid_reported = false;
 
 /* 函数说明：输出定时器模块调试诊断信息。 */
 static void osal_timer_report(const char *message) {
@@ -74,12 +76,23 @@ static void osal_timer_sync_tick_source(void) {
     s_tick_period_ticks = 0U;
     s_tick_period_us = OSAL_TICK_PERIOD_US;
 
-    if ((source == NULL) ||
-        (source->get_counter_clock_hz == NULL) ||
+    if (source == NULL) {
+        if (!s_tick_missing_reported) {
+            osal_timer_report("tick source is not ready");
+            s_tick_missing_reported = true;
+        }
+        return;
+    }
+
+    if ((source->get_counter_clock_hz == NULL) ||
         (source->get_reload_value == NULL) ||
         (source->get_current_value == NULL) ||
         (source->is_enabled == NULL) ||
         (source->has_elapsed == NULL)) {
+        if (!s_tick_invalid_reported) {
+            osal_timer_report("tick source configuration is incomplete");
+            s_tick_invalid_reported = true;
+        }
         return;
     }
 
@@ -88,6 +101,10 @@ static void osal_timer_sync_tick_source(void) {
     period_ticks = reload_value + 1U;
 
     if ((counter_hz == 0U) || (period_ticks == 0U)) {
+        if (!s_tick_invalid_reported) {
+            osal_timer_report("tick source returned invalid clock/reload value");
+            s_tick_invalid_reported = true;
+        }
         return;
     }
 
@@ -103,6 +120,8 @@ static void osal_timer_sync_tick_source(void) {
     s_tick_period_ticks = period_ticks;
     s_tick_period_us = period_us;
     s_tick_source_ready = true;
+    s_tick_missing_reported = false;
+    s_tick_invalid_reported = false;
 }
 
 /* 函数说明：在关中断保护下读取当前子节拍的微秒偏移。 */
@@ -179,6 +198,8 @@ static uint64_t osal_timer_get_uptime_us64(void) {
 /* 函数说明：初始化 OSAL 系统层和平台时基桥接。 */
 void osal_init(void) {
     osal_platform_init();
+    osal_platform_setup_interrupt_controller();
+    osal_platform_setup_system_tick();
     osal_timer_sync_tick_source();
 }
 
@@ -421,3 +442,6 @@ void osal_timer_poll(void) {
     /* 软件定时器模块关闭时，这里保持为空操作。 */
 #endif
 }
+
+
+
