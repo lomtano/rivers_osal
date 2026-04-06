@@ -24,266 +24,379 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+/* 如需启用 Flash 示例，请在包含 osal.h 之前先把下面宏改成 1。 */
+/* #define OSAL_PLATFORM_ENABLE_FLASH_DEMO 1 */
 #include "osal.h"
-#include "periph_uart.h"
-#include "periph_flash.h"
-#include "osal_platform_stm32f4.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-typedef struct {
-    uint32_t interval_ms;
-    void (*toggle)(void);
+typedef struct
+{
+  uint32_t interval_ms;
+  void (*toggle)(void);
 } led_task_ctx_t;
 
-#ifdef OSAL_PLATFORM_ENABLE_FLASH_DEMO
-typedef struct {
-    periph_flash_t *flash;
-    bool done;
+#if OSAL_CFG_ENABLE_FLASH && OSAL_PLATFORM_ENABLE_FLASH_DEMO
+typedef struct
+{
+  periph_flash_t *flash;
+  bool done;
 } flash_demo_ctx_t;
 #endif
 
-typedef struct {
-    uint32_t sequence;
-    uint8_t payload[8];
+typedef struct
+{
+  uint32_t sequence;
+  uint8_t payload[8];
 } queue_message_t;
 static uint32_t g_queue_sequence = 0U;
 
-static periph_uart_t *g_uart = NULL;
 static osal_queue_t *g_demo_queue = NULL;
 
 static led_task_ctx_t g_led1_ctx = {500U, osal_platform_led1_toggle};
 static led_task_ctx_t g_led2_ctx = {1000U, osal_platform_led2_toggle};
 
-#ifdef OSAL_PLATFORM_ENABLE_FLASH_DEMO
+#if OSAL_CFG_ENABLE_FLASH && OSAL_PLATFORM_ENABLE_FLASH_DEMO
 static periph_flash_t *g_flash = NULL;
 #endif
-#ifdef OSAL_PLATFORM_ENABLE_FLASH_DEMO
+#if OSAL_CFG_ENABLE_FLASH && OSAL_PLATFORM_ENABLE_FLASH_DEMO
 static flash_demo_ctx_t g_flash_demo_ctx;
 #endif
 
-/* 通过平台层已经挂好的 USART 控制台重定向 printf。 */
-int fputc(int ch, FILE *f) {
-    return periph_uart_fputc(ch, f);
+static periph_uart_t *s_example_uart = NULL;
+
+/* 通过平台层创建好的 USART 控制台重定向 printf。 */
+int fputc(int ch, FILE *f)
+{
+  return periph_uart_fputc(ch, f);
 }
 
 /* 单次软件定时器回调示例。 */
-static void oneshot_timer_callback(void *arg) {
-    (void)arg;
-    uint32_t now = osal_timer_get_tick();
-    LOGE("oneshot timer: %lu\r\n", (unsigned long)now);
+static void oneshot_timer_callback(void *arg)
+{
+  (void)arg;
+  uint32_t now = osal_timer_get_tick();
+  LOGE("oneshot timer: %lu\r\n", (unsigned long)now);
 }
 
 /* 周期软件定时器回调示例。 */
-static void periodic_timer_callback(void *arg) {
-    (void)arg;
-    uint32_t now = osal_timer_get_tick();
-    LOGI("periodic timer: %lu\r\n", (unsigned long)now);
+static void periodic_timer_callback(void *arg)
+{
+  (void)arg;
+  uint32_t now = osal_timer_get_tick();
+  LOGI("periodic timer: %lu\r\n", (unsigned long)now);
 }
 
-/* 每个点灯任务只负责翻转一次 LED，然后休眠自己的周期。 */
-static void led_task(void *arg) {
-    led_task_ctx_t *ctx = (led_task_ctx_t *)arg;
+/* 点灯任务只做一件事：翻转一次 LED，然后休眠自己的周期。 */
+static void led_task(void *arg)
+{
+  led_task_ctx_t *ctx = (led_task_ctx_t *)arg;
 
-    if ((ctx == NULL) || (ctx->toggle == NULL)) {
-        return;
-    }
+  if ((ctx == NULL) || (ctx->toggle == NULL))
+  {
+    return;
+  }
 
-    ctx->toggle();
-    (void)osal_task_sleep(NULL, ctx->interval_ms);
+  ctx->toggle();
+  (void)osal_task_sleep(NULL, ctx->interval_ms);
 }
 
 /* 队列发送任务：
  * 1. 每 1 秒组一个结构体消息。
- * 2. 队列满时用 OSAL_WAIT_FOREVER 真正阻塞等待空位。
- * 3. 这里不再额外包装上下文结构体，方便直接照抄。
+ * 2. 队列满时使用 OSAL_WAIT_FOREVER，当前任务会真正进入 BLOCKED。
+ * 3. 一旦接收方取走消息，队列会主动唤醒等待发送的任务。
  */
-static void queue_producer_task(void *arg) {
-    queue_message_t message;
-    uint32_t i;
+static void queue_producer_task(void *arg)
+{
+  queue_message_t message;
+  uint32_t i;
 
-    (void)arg;
-    if (g_demo_queue == NULL) {
-        return;
-    }
+  (void)arg;
+  if (g_demo_queue == NULL)
+  {
+    return;
+  }
 
-    message.sequence = g_queue_sequence++;
-    for (i = 0U; i < (uint32_t)sizeof(message.payload); ++i) {
-        message.payload[i] = (uint8_t)(message.sequence + i);
-    }
+  message.sequence = g_queue_sequence++;
+  for (i = 0U; i < (uint32_t)sizeof(message.payload); ++i)
+  {
+    message.payload[i] = (uint8_t)(message.sequence + i);
+  }
 
-    if (osal_queue_send_timeout(g_demo_queue, &message, OSAL_WAIT_FOREVER) == OSAL_OK) {
-        printf("queue send: seq=%lu first=%u count=%lu\r\n",
-               (unsigned long)message.sequence,
-               (unsigned int)message.payload[0],
-               (unsigned long)osal_queue_get_count(g_demo_queue));
-    }
+  if (osal_queue_send_timeout(g_demo_queue, &message, OSAL_WAIT_FOREVER) == OSAL_OK)
+  {
+//        printf("queue send: seq=%lu first=%u count=%lu\r\n",
+//               (unsigned long)message.sequence,
+//               (unsigned int)message.payload[0],
+//               (unsigned long)osal_queue_get_count(g_demo_queue));
+  }
 
-    (void)osal_task_sleep_until(NULL, 1000U);
+  (void)osal_task_sleep_until(NULL, 1000U);
 }
 
 /* 队列接收任务：
- * 1. recv_timeout(..., OSAL_WAIT_FOREVER) 表示没消息就挂起当前任务。
- * 2. send / send_from_isr 成功后，会把等待接收的任务直接唤醒。
- * 3. 这里只有返回 OSAL_OK 时才处理消息，否则本轮直接 return 即可。
+ * 1. recv_timeout(..., OSAL_WAIT_FOREVER) 表示没消息时当前任务阻塞等待。
+ * 2. send / send_from_isr 成功后，等待接收的任务会被直接置为 READY。
+ * 3. 当前示例保持最小化，只在收发成功时预留打印位置。
  */
-static void queue_consumer_task(void *arg) {
-    queue_message_t message;
+static void queue_consumer_task(void *arg)
+{
+  queue_message_t message;
 
-    (void)arg;
-    if (g_demo_queue == NULL) {
-        return;
-    }
+  (void)arg;
+  if (g_demo_queue == NULL)
+  {
+    return;
+  }
 
-    if (osal_queue_recv_timeout(g_demo_queue, &message, OSAL_WAIT_FOREVER) == OSAL_OK) {
-        printf("queue recv: seq=%lu bytes=%u,%u count=%lu\r\n",
-               (unsigned long)message.sequence,
-               (unsigned int)message.payload[0],
-               (unsigned int)message.payload[1],
-               (unsigned long)osal_queue_get_count(g_demo_queue));
-    }
+  if (osal_queue_recv_timeout(g_demo_queue, &message, OSAL_WAIT_FOREVER) == OSAL_OK)
+  {
+//        printf("queue recv: seq=%lu bytes=%u,%u count=%lu\r\n",
+//               (unsigned long)message.sequence,
+//               (unsigned int)message.payload[0],
+//               (unsigned int)message.payload[1],
+//               (unsigned long)osal_queue_get_count(g_demo_queue));
+  }
 }
 
-/* RTT 任务示例：每 500ms 打印一次当前 tick。 */
+/* RTT 示例任务：每 500ms 打印一次当前 tick。 */
 void SEGGER_RTT_Test(void *arg)
 {
-    static bool s_rtt_initialized = false;
-    (void)arg;
-    if (!s_rtt_initialized) {
-        SEGGER_RTT_Init();
-        s_rtt_initialized = true;
-    }
+  static bool s_rtt_initialized = false;
+  (void)arg;
+  if (!s_rtt_initialized)
+  {
+    SEGGER_RTT_Init();
+    s_rtt_initialized = true;
+  }
 
-    LOGW("rtt task running: %lu ms\r\n", (unsigned long)osal_timer_get_tick());
+  LOGW("rtt task running: %lu ms\r\n", (unsigned long)osal_timer_get_tick());
 //		(void)osal_task_sleep_until(NULL, 500U);
-    (void)osal_task_sleep(NULL, 500U);
+  (void)osal_task_sleep(NULL, 500U);
 }
 
-#ifdef OSAL_PLATFORM_ENABLE_FLASH_DEMO
-/* Flash 示例任务：上电后只执行一次擦写与回读。 */
-static void flash_demo_task(void *arg) {
-    flash_demo_ctx_t *ctx = (flash_demo_ctx_t *)arg;
-    uint8_t payload[] = {0x52U, 0x56U, 0x4FU, 0x53U, 0x01U, 0x02U, 0x03U, 0x04U};
-    uint8_t readback[sizeof(payload)];
+#if OSAL_CFG_ENABLE_FLASH && OSAL_PLATFORM_ENABLE_FLASH_DEMO
+/* Flash 示例任务：只执行一次擦除、写入和回读。 */
+static void flash_demo_task(void *arg)
+{
+  flash_demo_ctx_t *ctx = (flash_demo_ctx_t *)arg;
+  uint8_t payload[] = {0x52U, 0x56U, 0x4FU, 0x53U, 0x01U, 0x02U, 0x03U, 0x04U};
+  uint8_t readback[sizeof(payload)];
 
-    if ((ctx == NULL) || ctx->done) {
-        return;
-    }
+  if ((ctx == NULL) || ctx->done)
+  {
+    return;
+  }
 
-    ctx->done = true;
-    memset(readback, 0, sizeof(readback));
+  ctx->done = true;
+  memset(readback, 0, sizeof(readback));
 
-    printf("flash demo start @ 0x%08lX\r\n", (unsigned long)OSAL_PLATFORM_FLASH_DEMO_ADDRESS);
-    if (periph_flash_unlock(ctx->flash) != OSAL_OK) {
-        printf("flash unlock failed\r\n");
-        return;
-    }
+  printf("flash demo start @ 0x%08lX\r\n", (unsigned long)OSAL_PLATFORM_FLASH_DEMO_ADDRESS);
+  if (periph_flash_unlock(ctx->flash) != OSAL_OK)
+  {
+    printf("flash unlock failed\r\n");
+    return;
+  }
 
-    if (periph_flash_erase(ctx->flash, OSAL_PLATFORM_FLASH_DEMO_ADDRESS, sizeof(payload)) != OSAL_OK) {
-        printf("flash erase failed\r\n");
-        (void)periph_flash_lock(ctx->flash);
-        return;
-    }
-
-    if (periph_flash_write(ctx->flash, OSAL_PLATFORM_FLASH_DEMO_ADDRESS, payload, sizeof(payload)) != OSAL_OK) {
-        printf("flash write failed\r\n");
-        (void)periph_flash_lock(ctx->flash);
-        return;
-    }
-
-    if (periph_flash_read(ctx->flash, OSAL_PLATFORM_FLASH_DEMO_ADDRESS, readback, sizeof(readback)) != OSAL_OK) {
-        printf("flash read failed\r\n");
-        (void)periph_flash_lock(ctx->flash);
-        return;
-    }
-
+  if (periph_flash_erase(ctx->flash, OSAL_PLATFORM_FLASH_DEMO_ADDRESS, sizeof(payload)) != OSAL_OK)
+  {
+    printf("flash erase failed\r\n");
     (void)periph_flash_lock(ctx->flash);
-    printf("flash readback: %02X %02X %02X %02X\r\n",
-           readback[0], readback[1], readback[2], readback[3]);
+    return;
+  }
+
+  if (periph_flash_write(ctx->flash, OSAL_PLATFORM_FLASH_DEMO_ADDRESS, payload, sizeof(payload)) != OSAL_OK)
+  {
+    printf("flash write failed\r\n");
+    (void)periph_flash_lock(ctx->flash);
+    return;
+  }
+
+  if (periph_flash_read(ctx->flash, OSAL_PLATFORM_FLASH_DEMO_ADDRESS, readback, sizeof(readback)) != OSAL_OK)
+  {
+    printf("flash read failed\r\n");
+    (void)periph_flash_lock(ctx->flash);
+    return;
+  }
+
+  (void)periph_flash_lock(ctx->flash);
+  printf("flash readback: %02X %02X %02X %02X\r\n",
+         readback[0], readback[1], readback[2], readback[3]);
 }
 #endif
 
-/* 创建两个低优先级点灯任务。 */
-static void app_led_demo_init(void) {
-    osal_task_t *led1_task;
-    osal_task_t *led2_task;
+/* 初始化两个低优先级点灯任务。 */
+static void app_led_demo_init(void)
+{
+  osal_task_t *led1_task;
+  osal_task_t *led2_task;
 
-    led1_task = osal_task_create(led_task, &g_led1_ctx, OSAL_TASK_PRIORITY_LOW);
-    led2_task = osal_task_create(led_task, &g_led2_ctx, OSAL_TASK_PRIORITY_LOW);
-    if (led1_task != NULL) {
-        (void)osal_task_start(led1_task);
-    }
-    if (led2_task != NULL) {
-        (void)osal_task_start(led2_task);
-    }
+  led1_task = osal_task_create(led_task, &g_led1_ctx, OSAL_TASK_PRIORITY_LOW);
+  led2_task = osal_task_create(led_task, &g_led2_ctx, OSAL_TASK_PRIORITY_LOW);
+  if (led1_task != NULL)
+  {
+    (void)osal_task_start(led1_task);
+  }
+  if (led2_task != NULL)
+  {
+    (void)osal_task_start(led2_task);
+  }
 }
 
-/* 队列示例：
- * 1. 使用 OSAL 统一静态堆创建一个结构体消息队列。
- * 2. 一个任务周期发送消息。
- * 3. 一个任务永久等待接收消息。
+/* 初始化队列收发示例：
+ * 1. 队列本身通过 osal_mem 统一内存池创建。
+ * 2. 一个高优先级任务发送结构体消息。
+ * 3. 一个高优先级任务接收结构体消息。
  *
  * 等待语义：
- * - 0U                ：不等待
- * - N 毫秒            ：最多等待 N 毫秒
- * - OSAL_WAIT_FOREVER ：一直等
+ * - 0U                不等待
+ * - N 毫秒            最多等待 N 毫秒
+ * - OSAL_WAIT_FOREVER 一直等
  */
-static void app_queue_demo_init(void) {
-    osal_task_t *producer_task;
-    osal_task_t *consumer_task;
+static void app_queue_demo_init(void)
+{
+  osal_task_t *producer_task;
+  osal_task_t *consumer_task;
 
-    g_demo_queue = osal_queue_create(8U, (uint32_t)sizeof(queue_message_t));
-    if (g_demo_queue == NULL) {
-        printf("queue create failed\r\n");
-        return;
-    }
+  g_demo_queue = osal_queue_create(8U, (uint32_t)sizeof(queue_message_t));
+  if (g_demo_queue == NULL)
+  {
+    printf("queue create failed\r\n");
+    return;
+  }
 
-    producer_task = osal_task_create(queue_producer_task, NULL, OSAL_TASK_PRIORITY_HIGH);
-    consumer_task = osal_task_create(queue_consumer_task, NULL, OSAL_TASK_PRIORITY_HIGH);
-    if (producer_task != NULL) {
-        (void)osal_task_start(producer_task);
-    }
-    if (consumer_task != NULL) {
-        (void)osal_task_start(consumer_task);
-    }
+  producer_task = osal_task_create(queue_producer_task, NULL, OSAL_TASK_PRIORITY_HIGH);
+  consumer_task = osal_task_create(queue_consumer_task, NULL, OSAL_TASK_PRIORITY_HIGH);
+  if (producer_task != NULL)
+  {
+    (void)osal_task_start(producer_task);
+  }
+  if (consumer_task != NULL)
+  {
+    (void)osal_task_start(consumer_task);
+  }
 }
 
-/* 创建一个单次定时器和一个周期定时器，用来演示软件定时器。 */
-static void app_timer_demo_init(void) {
-    int oneshot_timer = osal_timer_create(2000000U, false, oneshot_timer_callback, NULL);
-    int periodic_timer = osal_timer_create(1000000U, true, periodic_timer_callback, NULL);
+/* 初始化单次与周期软件定时器示例。 */
+static void app_timer_demo_init(void)
+{
+  int oneshot_timer = osal_timer_create(2000000U, false, oneshot_timer_callback, NULL);
+  int periodic_timer = osal_timer_create(1000000U, true, periodic_timer_callback, NULL);
 
-    if (oneshot_timer >= 0) {
-        (void)osal_timer_start(oneshot_timer);
-    }
-    if (periodic_timer >= 0) {
-        (void)osal_timer_start(periodic_timer);
-    }
+  if (oneshot_timer >= 0)
+  {
+    (void)osal_timer_start(oneshot_timer);
+  }
+  if (periodic_timer >= 0)
+  {
+    (void)osal_timer_start(periodic_timer);
+  }
 }
 
-static void app_rtt_demo_init(void) {
-    osal_task_t *rtt_task = osal_task_create(SEGGER_RTT_Test, NULL, OSAL_TASK_PRIORITY_MEDIUM);
+static void app_rtt_demo_init(void)
+{
+  osal_task_t *rtt_task = osal_task_create(SEGGER_RTT_Test, NULL, OSAL_TASK_PRIORITY_MEDIUM);
 
-    if (rtt_task != NULL) {
-        (void)osal_task_start(rtt_task);
-    }
+  if (rtt_task != NULL)
+  {
+    (void)osal_task_start(rtt_task);
+  }
 }
 
-#ifdef OSAL_PLATFORM_ENABLE_FLASH_DEMO
-/* 创建可选的 Flash 示例任务，启用前请先预留安全扇区。 */
-static void app_flash_demo_init(void) {
-    osal_task_t *task;
+#if OSAL_CFG_ENABLE_FLASH && OSAL_PLATFORM_ENABLE_FLASH_DEMO
+/* 初始化可选的 Flash 示例任务。 */
+static void app_flash_demo_init(void)
+{
+  osal_task_t *task;
 
-    g_flash_demo_ctx.flash = g_flash;
-    g_flash_demo_ctx.done = false;
-    task = osal_task_create(flash_demo_task, &g_flash_demo_ctx, OSAL_TASK_PRIORITY_LOW);
-    if (task != NULL) {
-        (void)osal_task_start(task);
-    }
+  g_flash_demo_ctx.flash = g_flash;
+  g_flash_demo_ctx.done = false;
+  task = osal_task_create(flash_demo_task, &g_flash_demo_ctx, OSAL_TASK_PRIORITY_LOW);
+  if (task != NULL)
+  {
+    (void)osal_task_start(task);
+  }
 }
 #endif
 
+
+static osal_event_t *s_example_event = NULL;
+
+static void osal_example_event_wait_task(void *arg)
+{
+  (void)arg;
+
+  if (s_example_event == NULL)
+  {
+    return;
+  }
+
+  if (osal_event_wait(s_example_event, 1000U) == OSAL_OK)
+  {
+    printf("event wait ok\r\n");
+  }
+  else
+  {
+    printf("event wait timeout\r\n");
+  }
+
+  (void)osal_task_sleep(NULL, 100U);
+}
+
+static void osal_example_event_set_task(void *arg)
+{
+  (void)arg;
+
+  if (s_example_event == NULL)
+  {
+    return;
+  }
+
+  (void)osal_event_set(s_example_event);
+  (void)osal_task_sleep(NULL, 1000U);
+}
+
+
+void osal_example_event_demo_init(void)
+{
+  osal_task_t *wait_task;
+  osal_task_t *set_task;
+
+  s_example_event = osal_event_create(true);
+  if (s_example_event == NULL)
+  {
+    return;
+  }
+
+  wait_task = osal_task_create(osal_example_event_wait_task, NULL, OSAL_TASK_PRIORITY_MEDIUM);
+  set_task = osal_task_create(osal_example_event_set_task, NULL, OSAL_TASK_PRIORITY_MEDIUM);
+  if (wait_task != NULL)
+  {
+    (void)osal_task_start(wait_task);
+  }
+  if (set_task != NULL)
+  {
+    (void)osal_task_start(set_task);
+  }
+}
+
+void osal_example_usart_demo_init(void)
+{
+  static const uint8_t raw_bytes[] = {'a', 'b', 'c', '\r', '\n'};
+
+  s_example_uart = osal_platform_uart_create();
+  if (s_example_uart == NULL)
+  {
+    return;
+  }
+
+  (void)periph_uart_bind_console(s_example_uart);
+  printf("\r\nOSAL STM32F4 demo\r\n");
+  printf("tick source: osal_init() + SysTick counter\r\n");
+  (void)periph_uart_write_string(s_example_uart, "osal usart demo\r\n");
+  (void)periph_uart_write(s_example_uart, raw_bytes, (uint32_t)sizeof(raw_bytes));
+}
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -345,25 +458,20 @@ int main(void)
   MX_DMA_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
-	 
-	 osal_init();
-	
-   g_uart = osal_platform_uart_create();
-   if (g_uart != NULL) {
-      (void)periph_uart_bind_console(g_uart);
-      printf("\r\nOSAL STM32F4 demo\r\n");
-      printf("tick source: osal_init() + SysTick counter\r\n");
-    }
-    app_led_demo_init();
-    app_queue_demo_init();
-    app_timer_demo_init();
-    app_rtt_demo_init();
 
-#ifdef OSAL_PLATFORM_ENABLE_FLASH_DEMO
-    g_flash = osal_platform_flash_create();
-    app_flash_demo_init();
-#endif	
-	
+  osal_init();
+  osal_example_usart_demo_init();
+  app_led_demo_init();
+  app_queue_demo_init();
+  app_timer_demo_init();
+  app_rtt_demo_init();
+  osal_example_event_demo_init();
+
+#if OSAL_CFG_ENABLE_FLASH && OSAL_PLATFORM_ENABLE_FLASH_DEMO
+  g_flash = osal_platform_flash_create();
+  app_flash_demo_init();
+#endif
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -426,6 +534,28 @@ void SystemClock_Config(void)
 /* USER CODE BEGIN 4 */
 
 /* USER CODE END 4 */
+
+/**
+  * @brief  Period elapsed callback in non blocking mode
+  * @note   This function is called  when TIM12 interrupt took place, inside
+  * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
+  * a global variable "uwTick" used as application time base.
+  * @param  htim : TIM handle
+  * @retval None
+  */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  /* USER CODE BEGIN Callback 0 */
+
+  /* USER CODE END Callback 0 */
+  if (htim->Instance == TIM12)
+  {
+    HAL_IncTick();
+  }
+  /* USER CODE BEGIN Callback 1 */
+
+  /* USER CODE END Callback 1 */
+}
 
 /**
   * @brief  This function is executed in case of error occurrence.

@@ -30,7 +30,7 @@ extern "C" {
 
 /**
  * @brief 回退模式下的默认 OSAL Tick 周期，单位为微秒。
- * @note 当平台层没有提供硬件 Tick 计数源时，OSAL 会使用这个默认周期。
+ * @note 当平台层没有正确注册硬件 Tick 计数源时，OSAL 会使用这个默认周期。
  */
 #ifndef OSAL_TICK_PERIOD_US
 #define OSAL_TICK_PERIOD_US 1000U
@@ -118,3 +118,5 @@ void osal_timer_delete(int timer_id);
 #endif
 
 #endif /* OSAL_TIMER_H */
+
+

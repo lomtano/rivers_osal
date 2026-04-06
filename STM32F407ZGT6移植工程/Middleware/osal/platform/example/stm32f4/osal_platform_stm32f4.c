@@ -151,50 +151,12 @@ static const periph_flash_bridge_t s_flash_bridge = {
 };
 #endif
 
-/* 函数说明：读取当前系统时基源的输入时钟频率。 */
-static uint32_t osal_platform_tick_source_get_clock_hz(void) {
-    return OSAL_PLATFORM_TICK_SOURCE_CLOCK_HZ();
-}
-
-/* 函数说明：读取当前系统时基源的重装值。 */
-static uint32_t osal_platform_tick_source_get_reload_value(void) {
-    return OSAL_PLATFORM_TICK_SOURCE_RELOAD_VALUE();
-}
-
-/* 函数说明：读取当前系统时基源的当前计数值。 */
-static uint32_t osal_platform_tick_source_get_current_value(void) {
-    return OSAL_PLATFORM_TICK_SOURCE_CURRENT_VALUE();
-}
-
-/* 函数说明：判断当前系统时基源是否已经使能。 */
-static bool osal_platform_tick_source_is_enabled(void) {
-    return OSAL_PLATFORM_TICK_SOURCE_ENABLED();
-}
-
-/* 函数说明：判断当前系统时基源是否发生过一次计数回卷。 */
-static bool osal_platform_tick_source_has_elapsed(void) {
-    return OSAL_PLATFORM_TICK_SOURCE_ELAPSED();
-}
-
-static const osal_tick_source_t s_tick_source = {
-    .get_counter_clock_hz = osal_platform_tick_source_get_clock_hz,
-    .get_reload_value = osal_platform_tick_source_get_reload_value,
-    .get_current_value = osal_platform_tick_source_get_current_value,
-    .is_enabled = osal_platform_tick_source_is_enabled,
-    .has_elapsed = osal_platform_tick_source_has_elapsed
-};
-
 /* 函数说明：完成当前平台所需的 OSAL 适配初始化。 */
 void osal_platform_init(void) {
     /*
      * 当前工程里 HAL_Init()、时钟配置、GPIO 初始化、USART 初始化仍由 main.c 完成。
      * 如果你想把串口初始化集中到平台层，可以在这里主动调用 OSAL_PLATFORM_UART_INIT()。
      */
-}
-
-/* 函数说明：返回当前平台注册的原始 Tick 源描述对象。 */
-const osal_tick_source_t *osal_platform_get_tick_source(void) {
-    return &s_tick_source;
 }
 
 #if OSAL_CFG_ENABLE_USART
@@ -225,29 +187,4 @@ __weak void osal_platform_led1_toggle(void) {
 /* 函数说明：翻转平台示例中的第二个 LED。 */
 __weak void osal_platform_led2_toggle(void) {
     OSAL_PLATFORM_LED2_TOGGLE();
-}
-
-/* 函数说明：判断当前代码是否运行在中断上下文中。 */
-bool osal_irq_is_in_isr(void) {
-    return (__get_IPSR() != 0U);
-}
-
-/* 函数说明：关闭中断并返回当前中断状态快照。 */
-uint32_t osal_irq_disable(void) {
-    uint32_t primask = __get_PRIMASK();
-
-    __disable_irq();
-    return primask;
-}
-
-/* 函数说明：重新打开全局中断。 */
-void osal_irq_enable(void) {
-    __enable_irq();
-}
-
-/* 函数说明：按之前保存的状态恢复中断开关。 */
-void osal_irq_restore(uint32_t prev_state) {
-    if (prev_state == 0U) {
-        osal_irq_enable();
-    }
 }
