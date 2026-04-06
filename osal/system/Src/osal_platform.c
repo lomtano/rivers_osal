@@ -27,7 +27,7 @@ static bool osal_platform_tick_source_is_enabled(void) {
 }
 
 /* 函数说明：判断当前系统时基源是否发生过一次计数回卷。 */
-static bool osal_platform_tick_source_has_elapsed(void) {OSAL_PLATFORM_SYSTICK_USE_CORE_CLOCK
+static bool osal_platform_tick_source_has_elapsed(void) {
     return ((OSAL_PLATFORM_SYSTICK_CTRL_REG & OSAL_PLATFORM_SYSTICK_COUNTFLAG_BIT) != 0U);
 }
 
