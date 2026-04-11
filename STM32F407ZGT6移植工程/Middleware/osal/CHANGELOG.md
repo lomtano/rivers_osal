@@ -1,4 +1,28 @@
-﻿# 更新日志
+# 更新日志
+
+## 2026-04-12
+
+- 将 `event` 的等待逻辑从“循环检查 + yield”改为和 `queue` 一致的事件驱动等待模型：
+  - 等待时把当前任务挂到事件等待链表
+  - 任务状态切到 `BLOCKED`
+  - `osal_event_set()` 直接唤醒等待任务
+  - `osal_event_delete()` 会把等待任务带 `OSAL_ERR_RESOURCE` 唤醒
+- 将 `mutex` 的等待逻辑从“尝试加锁 + yield 重试”改为和 `queue` 一致的事件驱动等待模型：
+  - 拿不到锁时把当前任务挂到互斥量等待链表
+  - 任务状态切到 `BLOCKED`
+  - `osal_mutex_unlock()` 直接唤醒一个等待任务
+  - `osal_mutex_delete()` 会把等待任务带 `OSAL_ERR_RESOURCE` 唤醒
+- 扩展 `task` 内部等待原因，新增：
+  - `OSAL_TASK_WAIT_EVENT`
+  - `OSAL_TASK_WAIT_MUTEX_LOCK`
+- 补齐 `task` 内部阻塞恢复链路：
+  - 超时路径会从事件/互斥量等待链表中摘除任务
+  - `stop/delete` 路径会先解除事件/互斥量等待对象关联
+  - 恢复结果继续统一通过任务控制块中的 `resume_*` 字段回传
+- 同步调整示例代码，避免“进入 `BLOCKED` 后又继续执行 `sleep` 覆盖等待状态”的错误写法：
+  - `main.c`
+  - `osal_integration_stm32f4.c`
+- 继续补充 `event / mutex / task` 相关实现注释，把等待链表、阻塞恢复、超时处理等细节解释完整。
 
 ## 2026-04-11
 
@@ -48,4 +72,3 @@
   - 内存管理
   - 中断抽象
   - USART / Flash 桥接组件
-

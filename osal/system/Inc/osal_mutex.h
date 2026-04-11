@@ -24,7 +24,8 @@ typedef struct osal_mutex osal_mutex_t;
  * 接口能力矩阵：
  * - create / delete / lock / unlock: 任务态
  * - ISR: 不支持
- * - 当前 lock 实现仍然是“尝试加锁 + yield”，还没有优先级继承
+ * - lock 现在已经采用“等待链表 + BLOCKED + unlock 唤醒”的模型
+ * - 当前仍然没有 owner 检查，也没有优先级继承
  */
 
 /**
@@ -46,8 +47,12 @@ void osal_mutex_delete(osal_mutex_t *mutex);
  * @param timeout_ms 超时时间，单位为毫秒。
  * @return OSAL 状态码。
  * @note timeout_ms 支持 0U / N / OSAL_WAIT_FOREVER。
+ * @note 0U 表示只尝试一次，拿不到锁就立刻返回 OSAL_ERR_TIMEOUT。
+ * @note N 毫秒表示最多等待 N 毫秒，超时后返回 OSAL_ERR_TIMEOUT。
+ * @note OSAL_WAIT_FOREVER 表示一直等，直到别的任务 unlock 或互斥量被 delete。
  * @note 当前实现只保证最基本的互斥访问，不提供 owner 检查和优先级继承。
- * @note 0U 表示只尝试一次，拿不到锁就立刻返回。
+ * @note 当锁暂时不可用且允许等待时，当前任务会被置为 BLOCKED，
+ *       从普通调度扫描里跳过；unlock 后等待任务会被直接唤醒。
  */
 osal_status_t osal_mutex_lock(osal_mutex_t *mutex, uint32_t timeout_ms);
 

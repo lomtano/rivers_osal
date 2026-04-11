@@ -35,6 +35,14 @@ void osal_queue_cancel_wait_internal(void *queue_object,
                                      osal_task_wait_reason_t reason);
 #endif
 
+#if OSAL_CFG_ENABLE_EVENT
+void osal_event_cancel_wait_internal(void *event_object, osal_task_t *task);
+#endif
+
+#if OSAL_CFG_ENABLE_MUTEX
+void osal_mutex_cancel_wait_internal(void *mutex_object, osal_task_t *task);
+#endif
+
 /*
  * 任务控制块说明：
  * 1. fn/arg 是任务入口和参数。
@@ -178,6 +186,30 @@ static void osal_task_detach_wait_object(osal_task_t *task) {
     }
 #endif
 
+#if OSAL_CFG_ENABLE_EVENT
+    if (task->wait_reason == OSAL_TASK_WAIT_EVENT) {
+        if (task->wait_object != NULL) {
+            /*
+             * 事件等待现在也采用“挂等待链表 + 事件唤醒”的模型。
+             * 所以 stop/delete 任务前，同样要先把它从事件的等待链表中摘掉。
+             */
+            osal_event_cancel_wait_internal(task->wait_object, task);
+        }
+    }
+#endif
+
+#if OSAL_CFG_ENABLE_MUTEX
+    if (task->wait_reason == OSAL_TASK_WAIT_MUTEX_LOCK) {
+        if (task->wait_object != NULL) {
+            /*
+             * 互斥量等待链表里的节点一旦失效，后续 unlock 唤醒时就会出问题。
+             * 因此 stop/delete 任务时也必须先把它从互斥量等待链表中移除。
+             */
+            osal_mutex_cancel_wait_internal(task->wait_object, task);
+        }
+    }
+#endif
+
     /* 等待对象解除后，顺手把本地等待状态也完全清空。 */
     osal_task_clear_wait_state(task);
 }
@@ -292,6 +324,26 @@ static void osal_task_check_wait_timeout(osal_task_t *task, uint32_t now_ms) {
         }
 #endif
         /* 队列等待超时要带着 OSAL_ERR_TIMEOUT 返回给调用者。 */
+        osal_task_make_ready(task, OSAL_ERR_TIMEOUT);
+        break;
+
+    case OSAL_TASK_WAIT_EVENT:
+#if OSAL_CFG_ENABLE_EVENT
+        if (task->wait_object != NULL) {
+            /* 事件等待超时时，也要先从事件等待链表摘除。 */
+            osal_event_cancel_wait_internal(task->wait_object, task);
+        }
+#endif
+        osal_task_make_ready(task, OSAL_ERR_TIMEOUT);
+        break;
+
+    case OSAL_TASK_WAIT_MUTEX_LOCK:
+#if OSAL_CFG_ENABLE_MUTEX
+        if (task->wait_object != NULL) {
+            /* 互斥量等待超时时，先把任务从等待获取锁的链表里摘掉。 */
+            osal_mutex_cancel_wait_internal(task->wait_object, task);
+        }
+#endif
         osal_task_make_ready(task, OSAL_ERR_TIMEOUT);
         break;
 

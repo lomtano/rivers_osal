@@ -25,7 +25,7 @@ typedef struct osal_event osal_event_t;
  * 接口能力矩阵：
  * - create / delete / wait: 任务态
  * - set / clear: 任务态 / ISR
- * - 当前 wait 实现仍然是“检查事件标志 + yield”，还不是像队列那样的事件驱动等待链表
+ * - wait 现在已经采用“等待链表 + BLOCKED + 事件唤醒”的模型
  */
 
 /**
@@ -63,8 +63,11 @@ osal_status_t osal_event_clear(osal_event_t *evt);
  * @param timeout_ms 超时时间，单位为毫秒。
  * @return 成功返回 OSAL_OK，超时返回 OSAL_ERR_TIMEOUT。
  * @note timeout_ms 支持 0U / N / OSAL_WAIT_FOREVER。
- * @note 这个等待会阻塞当前任务，但不会阻塞整个系统；底层目前仍属于协作式轮询等待。
  * @note 0U 表示只检查一次当前事件状态，不等待。
+ * @note N 毫秒表示最多等待 N 毫秒，超时后返回 OSAL_ERR_TIMEOUT。
+ * @note OSAL_WAIT_FOREVER 表示一直等，直到事件被 set 或事件对象被 delete。
+ * @note 当事件暂时不可用且允许等待时，当前任务会被置为 BLOCKED，
+ *       从普通调度扫描中跳过；事件被 set 后，等待任务会被直接唤醒。
  */
 osal_status_t osal_event_wait(osal_event_t *evt, uint32_t timeout_ms);
 

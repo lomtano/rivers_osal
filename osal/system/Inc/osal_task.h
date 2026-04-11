@@ -79,6 +79,8 @@ typedef enum {
  *       1. 普通 sleep 挂起。
  *       2. 等待队列可写。
  *       3. 等待队列可读。
+ *       4. 等待事件触发。
+ *       5. 等待互斥量解锁。
  *
  * @note 之所以要把“等待原因”单独记录下来，是为了在任务被唤醒时知道：
  *       1. 它是被谁挂起的。
@@ -89,7 +91,9 @@ typedef enum {
     OSAL_TASK_WAIT_NONE = 0,       /* 当前没有等待任何对象。 */
     OSAL_TASK_WAIT_SLEEP,          /* 正在等待时间到期。 */
     OSAL_TASK_WAIT_QUEUE_SEND,     /* 正在等待队列出现空位。 */
-    OSAL_TASK_WAIT_QUEUE_RECV      /* 正在等待队列出现消息。 */
+    OSAL_TASK_WAIT_QUEUE_RECV,     /* 正在等待队列出现消息。 */
+    OSAL_TASK_WAIT_EVENT,          /* 正在等待事件对象被置位。 */
+    OSAL_TASK_WAIT_MUTEX_LOCK      /* 正在等待互斥量变为可获取。 */
 } osal_task_wait_reason_t;
 
 /**

@@ -74,15 +74,25 @@ static uint32_t s_example_shared_counter = 0U;
  * 两个任务都会去修改它，所以必须先 lock，再改值，最后 unlock。 */
 static void osal_example_mutex_task(void *arg) {
     const char *name = (const char *)arg;
+    osal_status_t status;
 
     if ((name == NULL) || (s_example_mutex == NULL)) {
         return;
     }
 
-    if (osal_mutex_lock(s_example_mutex, 10U) == OSAL_OK) {
+    status = osal_mutex_lock(s_example_mutex, 10U);
+    if (status == OSAL_OK) {
         ++s_example_shared_counter;
         printf("%s lock ok, counter=%lu\r\n", name, (unsigned long)s_example_shared_counter);
         (void)osal_mutex_unlock(s_example_mutex);
+    }
+    else if (status == OSAL_ERR_RESOURCE) {
+        /*
+         * 这里表示当前任务已经因为“等待互斥量可用”进入 BLOCKED。
+         * 一旦进入这个分支，就必须立刻 return，不能继续执行下面的 sleep，
+         * 否则会把互斥量等待状态覆盖掉。
+         */
+        return;
     }
 
     (void)osal_task_sleep(NULL, 200U);
@@ -119,16 +129,25 @@ static osal_event_t *s_example_event = NULL;
 /* 函数说明：演示等待事件触发的示例任务。
  * 如果 1000ms 内等到事件，就打印成功；否则打印超时。 */
 static void osal_example_event_wait_task(void *arg) {
+    osal_status_t status;
+
     (void)arg;
 
     if (s_example_event == NULL) {
         return;
     }
 
-    if (osal_event_wait(s_example_event, 1000U) == OSAL_OK) {
+    status = osal_event_wait(s_example_event, 1000U);
+    if (status == OSAL_OK) {
         printf("event wait ok\r\n");
-    } else {
+    } else if (status == OSAL_ERR_TIMEOUT) {
         printf("event wait timeout\r\n");
+    } else if (status == OSAL_ERR_RESOURCE) {
+        /*
+         * 这里说明当前任务已经正式进入“等待事件”的 BLOCKED 状态。
+         * 因此本轮函数必须立即 return，不能再继续往下 sleep。
+         */
+        return;
     }
 
     (void)osal_task_sleep(NULL, 100U);
@@ -219,6 +238,7 @@ static void osal_example_queue_start_tasks(void) {
 static void osal_example_queue_producer_task(void *arg) {
     osal_example_queue_message_t message;
     uint32_t i;
+    osal_status_t status;
 
     (void)arg;
     if (s_example_queue == NULL) {
@@ -230,11 +250,18 @@ static void osal_example_queue_producer_task(void *arg) {
         message.payload[i] = (uint8_t)(message.sequence + i);
     }
 
-    if (osal_queue_send_timeout(s_example_queue, &message, OSAL_WAIT_FOREVER) == OSAL_OK) {
+    status = osal_queue_send_timeout(s_example_queue, &message, OSAL_WAIT_FOREVER);
+    if (status == OSAL_OK) {
         printf("queue send: seq=%lu first=%u count=%lu\r\n",
                (unsigned long)message.sequence,
                (unsigned int)message.payload[0],
                (unsigned long)osal_queue_get_count(s_example_queue));
+    } else if (status == OSAL_ERR_RESOURCE) {
+        /*
+         * 这里说明当前任务已经因为队列满而进入 BLOCKED。
+         * 这种情况下必须立刻 return，不能继续执行下面的周期 sleep_until。
+         */
+        return;
     }
 
     (void)osal_task_sleep_until(NULL, 1000U);
