@@ -1,4 +1,4 @@
-#include "osal.h"
+﻿#include "osal.h"
 
 #if OSAL_CFG_ENABLE_FLASH
 
@@ -6,6 +6,12 @@
 #include "osal_mem.h"
 #include <string.h>
 
+/*
+ * Flash 组件对象：
+ * 1. bridge 指向底层 MCU SDK 的 Flash 操作函数表。
+ * 2. context 保存底层上下文；对于很多片上 Flash，可能为空。
+ * 3. next 仅用于活动对象链表管理。
+ */
 struct periph_flash {
     const periph_flash_bridge_t *bridge;
     void *context;
@@ -21,6 +27,7 @@ static void periph_flash_report(const char *message) {
 
 /* 函数说明：将 Flash 对象挂入活动链表。 */
 static void periph_flash_link(periph_flash_t *flash) {
+    /* 头插活动链表，后续 destroy/validate 都靠它检查句柄是否还活着。 */
     flash->next = s_flash_list;
     s_flash_list = flash;
 }
@@ -68,6 +75,7 @@ static bool periph_flash_validate_handle(const periph_flash_t *flash) {
     }
 #if OSAL_CFG_ENABLE_DEBUG
     if (!periph_flash_contains((periph_flash_t *)flash)) {
+        /* debug 模式下尽早发现“句柄已失效却继续使用”的问题。 */
         periph_flash_report("API called with inactive Flash handle");
         return false;
     }
@@ -93,6 +101,7 @@ periph_flash_t *periph_flash_create(const periph_flash_bridge_t *bridge, void *c
         return NULL;
     }
 
+    /* bridge 决定底层 MCU SDK 怎么操作 Flash，context 提供底层环境。 */
     flash->bridge = bridge;
     flash->context = context;
     flash->next = NULL;
@@ -113,6 +122,7 @@ void periph_flash_destroy(periph_flash_t *flash) {
         periph_flash_report("destroy called with inactive Flash handle");
         return;
     }
+    /* 组件只拥有自己的控制块，不负责外部 SDK 句柄或板级资源的生命周期。 */
     osal_mem_free(flash);
 }
 
@@ -124,6 +134,7 @@ osal_status_t periph_flash_unlock(periph_flash_t *flash) {
     if ((flash->bridge == NULL) || (flash->bridge->unlock == NULL)) {
         return OSAL_ERR_PARAM;
     }
+    /* 真正的解锁细节全部交给平台桥接层，例如 HAL_FLASH_Unlock。 */
     return flash->bridge->unlock(flash->context);
 }
 
@@ -135,6 +146,7 @@ osal_status_t periph_flash_lock(periph_flash_t *flash) {
     if ((flash->bridge == NULL) || (flash->bridge->lock == NULL)) {
         return OSAL_ERR_PARAM;
     }
+    /* 组件层不直接碰厂商 SDK，只调桥接函数。 */
     return flash->bridge->lock(flash->context);
 }
 
@@ -146,6 +158,7 @@ osal_status_t periph_flash_erase(periph_flash_t *flash, uint32_t address, uint32
     if ((flash->bridge == NULL) || (flash->bridge->erase == NULL)) {
         return OSAL_ERR_PARAM;
     }
+    /* 擦除按“地址 + 长度”描述，由板级桥接层自己处理扇区映射。 */
     return flash->bridge->erase(flash->context, address, length);
 }
 
@@ -156,13 +169,19 @@ osal_status_t periph_flash_read(periph_flash_t *flash, uint32_t address, uint8_t
     }
 
     if (length == 0U) {
+        /* 读 0 字节视为成功空操作，便于上层统一调用。 */
         return OSAL_OK;
     }
 
     if ((flash->bridge != NULL) && (flash->bridge->read != NULL)) {
+        /* 如果平台单独提供了 read bridge，就优先走平台实现。 */
         return flash->bridge->read(flash->context, address, data, length);
     }
 
+    /*
+     * 如果平台没有单独提供 read bridge，则默认按“内部 Flash 可直接内存映射读取”处理。
+     * 这适用于大多数片上 Flash，但不适用于某些特殊外部存储设备。
+     */
     memcpy(data, (const void *)(uintptr_t)address, length);
     return OSAL_OK;
 }
@@ -175,6 +194,7 @@ osal_status_t periph_flash_write_u8(periph_flash_t *flash, uint32_t address, uin
     if ((flash->bridge == NULL) || (flash->bridge->write_u8 == NULL)) {
         return OSAL_ERR_PARAM;
     }
+    /* 这里不再替用户猜测最佳位宽，而是严格按显式接口名调用对应写入桥接。 */
     return flash->bridge->write_u8(flash->context, address, value);
 }
 
@@ -212,3 +232,7 @@ osal_status_t periph_flash_write_u64(periph_flash_t *flash, uint32_t address, ui
 }
 
 #endif /* OSAL_CFG_ENABLE_FLASH */
+
+
+
+

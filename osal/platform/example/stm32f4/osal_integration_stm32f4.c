@@ -1,4 +1,4 @@
-#include <stdbool.h>
+﻿#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include "osal.h"
@@ -11,6 +11,8 @@
  * 4. 如果某个功能天然依赖任务或回调，本节会把最小必需的任务函数或回调函数也一起给出。
  * 5. 当前工程里 osal.h 已经聚合了平台头和组件头，示例文件也只需要包含 osal.h。
  * 6. 复制到自己工程时，通常只需要保留你想用的那一节。
+ * 7. 如果你是第一次接触这套 OSAL，建议先读“任务示例 -> 软件定时器示例 -> 队列示例”，
+ *    最后再看互斥量、事件和外设组件。因为前三者最能反映这套系统的核心用法。
  */
 
 /* ========================= 0. main 最小接入顺序示例 =========================
@@ -34,14 +36,22 @@
  * 1. 任务入口函数
  * 2. 对应的 demo_init() 初始化函数
  */
-/* 函数说明：演示最基础任务调度流程的示例任务。 */
+/* 函数说明：演示最基础任务调度流程的示例任务。
+ * 这个任务的作用非常单纯：
+ * 1. 翻转一次 LED。
+ * 2. 然后休眠 500ms。
+ *
+ * 如果你是第一次学这套系统，建议先把这一节单独复制到 main.c 验证“任务能跑起来”。 */
 static void osal_example_basic_task(void *arg) {
     (void)arg;
     osal_platform_led1_toggle();
     (void)osal_task_sleep(NULL, 500U);
 }
 
-/* 函数说明：初始化基础任务调度示例。 */
+/* 函数说明：初始化基础任务调度示例。
+ * 读这段代码时要注意两个步骤：
+ * 1. create 只负责“创建任务对象”。
+ * 2. start 才是“把任务放进调度器里”。 */
 void osal_example_task_demo_init(void) {
     osal_task_t *task = osal_task_create(osal_example_basic_task, NULL, OSAL_TASK_PRIORITY_LOW);
 
@@ -59,7 +69,9 @@ void osal_example_task_demo_init(void) {
 static osal_mutex_t *s_example_mutex = NULL;
 static uint32_t s_example_shared_counter = 0U;
 
-/* 函数说明：演示互斥量保护临界区的示例任务。 */
+/* 函数说明：演示互斥量保护临界区的示例任务。
+ * 这里的共享资源是 s_example_shared_counter。
+ * 两个任务都会去修改它，所以必须先 lock，再改值，最后 unlock。 */
 static void osal_example_mutex_task(void *arg) {
     const char *name = (const char *)arg;
 
@@ -104,7 +116,8 @@ void osal_example_mutex_demo_init(void) {
  */
 static osal_event_t *s_example_event = NULL;
 
-/* 函数说明：演示等待事件触发的示例任务。 */
+/* 函数说明：演示等待事件触发的示例任务。
+ * 如果 1000ms 内等到事件，就打印成功；否则打印超时。 */
 static void osal_example_event_wait_task(void *arg) {
     (void)arg;
 
@@ -165,7 +178,8 @@ typedef struct {
 } osal_example_queue_message_t;
 
 /* 队列示例补充说明：
- * 推荐先看下面的“队列初始化示例一/二”，再按需复制发送和接收任务。 */
+ * 推荐先看下面的“队列初始化示例一/二”，再按需复制发送和接收任务。
+ * 因为队列示例最容易让新手混淆“控制块是谁创建的”和“消息缓冲区是谁提供的”。 */
 static osal_queue_t *s_example_queue = NULL;
 static osal_example_queue_message_t s_example_queue_storage[8];
 static uint32_t s_example_queue_sequence = 0U;
@@ -179,7 +193,10 @@ static void osal_example_queue_consumer_task(void *arg);
  * 3. 二选一使用即可，不建议在同一个工程里同时调用这两个初始化函数。
  */
 
-/* 函数说明：启动队列发送任务和接收任务。 */
+/* 函数说明：启动队列发送任务和接收任务。
+ * 这里故意把“创建队列”和“创建任务”拆开，是为了让示例结构更清楚：
+ * 1. 先把队列对象准备好。
+ * 2. 再统一启动收发任务。 */
 static void osal_example_queue_start_tasks(void) {
     osal_task_t *producer_task;
     osal_task_t *consumer_task;
@@ -195,7 +212,9 @@ static void osal_example_queue_start_tasks(void) {
 }
 
 /* 函数说明：演示向消息队列投递消息的发送任务。
- * 队列满时使用 OSAL_WAIT_FOREVER 真正阻塞等待空位。 */
+ * 这里最关键的是最后那句 send_timeout(..., OSAL_WAIT_FOREVER)：
+ * 1. 队列有空位时，消息会立刻发出去。
+ * 2. 队列满时，当前任务会被挂起，而不是 while 轮询。 */
 
 static void osal_example_queue_producer_task(void *arg) {
     osal_example_queue_message_t message;
@@ -222,7 +241,9 @@ static void osal_example_queue_producer_task(void *arg) {
 }
 
 /* 函数说明：演示从消息队列读取消息的接收任务。
- * send / send_from_isr 成功后，等待接收的任务会被直接置为 READY。 */
+ * 这里最值得观察的是：
+ * 1. 队列为空时，接收任务会被挂起。
+ * 2. 一旦有任务或 ISR 往队列里发消息，这个接收任务会被直接置为 READY。 */
 static void osal_example_queue_consumer_task(void *arg) {
     osal_example_queue_message_t message;
 
@@ -297,7 +318,10 @@ static void osal_example_periodic_timer_callback(void *arg) {
            (unsigned long)osal_timer_get_tick());
 }
 
-/* 函数说明：初始化软件定时器使用示例。 */
+/* 函数说明：初始化软件定时器使用示例。
+ * 这里一次性创建两个定时器，是为了对比：
+ * 1. 单次定时器只回调一次。
+ * 2. 周期定时器会持续回调。 */
 void osal_example_timer_demo_init(void) {
     int oneshot_timer = osal_timer_create(2000000U, false, osal_example_oneshot_timer_callback, NULL);
     int periodic_timer = osal_timer_create(1000000U, true, osal_example_periodic_timer_callback, NULL);
@@ -318,7 +342,13 @@ void osal_example_timer_demo_init(void) {
  */
 static periph_uart_t *s_example_uart = NULL;
 
-/* 函数说明：初始化 USART 控制台和输出示例。 */
+/* 函数说明：初始化 USART 控制台和输出示例。
+ * 这一节完整演示了“从创建对象到实际输出”的全流程：
+ * 1. 创建 USART 组件对象。
+ * 2. 绑定控制台。
+ * 3. 用 printf 输出。
+ * 4. 用 periph_uart_write_string() 输出。
+ * 5. 用 periph_uart_write() 输出原始字节数组。 */
 void osal_example_usart_demo_init(void) {
     static const uint8_t raw_bytes[] = {'a', 'b', 'c', '\r', '\n'};
 
@@ -343,7 +373,9 @@ void osal_example_usart_demo_init(void) {
  * 5. 回读
  * 6. 上锁
  */
-/* 函数说明：执行一次内部 Flash 组件使用示例。 */
+/* 函数说明：执行一次内部 Flash 组件使用示例。
+ * 这里故意把解锁、擦除、写入、回读、上锁全部写在一起，
+ * 这样新手复制这一整段时，不容易漏掉某一步。 */
 void osal_example_flash_demo_once(void) {
     periph_flash_t *flash;
     uint8_t payload[] = {0x52U, 0x56U, 0x4FU, 0x53U, 0x01U, 0x02U, 0x03U, 0x04U};
@@ -391,3 +423,4 @@ void osal_example_flash_demo_once(void) {
            readback[0], readback[1], readback[2], readback[3]);
 }
 }
+

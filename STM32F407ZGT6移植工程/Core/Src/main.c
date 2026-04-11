@@ -1,4 +1,4 @@
-/* USER CODE BEGIN Header */
+﻿/* USER CODE BEGIN Header */
 /**
   ******************************************************************************
   * @file           : main.c
@@ -24,7 +24,9 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-/* 如需启用 Flash 示例，请在包含 osal.h 之前先把下面宏改成 1。 */
+/* 如需启用 Flash 示例，请在包含 osal.h 之前先把下面这个宏改成 1。
+ * 之所以要放在 osal.h 前面，是因为 osal.h 会继续聚合平台头，
+ * 而平台头里的部分示例配置会读取这个宏。 */
 /* #define OSAL_PLATFORM_ENABLE_FLASH_DEMO 1 */
 #define OSAL_PLATFORM_ENABLE_FLASH_DEMO 1
 #include "osal.h"
@@ -35,27 +37,29 @@
 /* USER CODE BEGIN PTD */
 typedef struct
 {
-  uint32_t interval_ms;
-  void (*toggle)(void);
+  uint32_t interval_ms;   /* 这个 LED 任务每次翻转后要休眠多久。单位：毫秒。 */
+  void (*toggle)(void);   /* 真正翻转 LED 的函数指针，由平台层提供。 */
 } led_task_ctx_t;
 
 #if OSAL_CFG_ENABLE_FLASH && OSAL_PLATFORM_ENABLE_FLASH_DEMO
 typedef struct
 {
-  periph_flash_t *flash;
-  bool done;
+  periph_flash_t *flash;  /* 本次 Flash 测试要操作的组件对象。 */
+  bool done;              /* 只执行一次测试，避免每轮调度都重复擦写 Flash。 */
 } flash_demo_ctx_t;
 #endif
 
 typedef struct
 {
-  uint32_t sequence;
-  uint8_t payload[8];
+  uint32_t sequence;   /* 这是第几条消息，用于观察收发顺序。 */
+  uint8_t payload[8];  /* 一段固定长度负载，用来演示结构体消息队列。 */
 } queue_message_t;
-static uint32_t g_queue_sequence = 0U;
+static uint32_t g_queue_sequence = 0U;    /* 发送任务每发一条消息就自增一次。 */
 
-static osal_queue_t *g_demo_queue = NULL;
+static osal_queue_t *g_demo_queue = NULL; /* main.c 队列示例共用的队列对象。 */
 
+/* 同一个任务函数配合不同参数，就能生成两个行为不同的 LED 任务。
+ * 这是协作式任务里非常常见的复用方式。 */
 static led_task_ctx_t g_led1_ctx = {500U, osal_platform_led1_toggle};
 static led_task_ctx_t g_led2_ctx = {1000U, osal_platform_led2_toggle};
 
@@ -66,15 +70,17 @@ static periph_flash_t *g_flash = NULL;
 static flash_demo_ctx_t g_flash_demo_ctx;
 #endif
 
-static periph_uart_t *s_example_uart = NULL;
+static periph_uart_t *s_example_uart = NULL; /* 绑定到 printf 的控制台串口对象。 */
 
-/* 通过平台层创建好的 USART 控制台重定向 printf。 */
+/* fputc 是标准库输出链路最底层的“输出一个字符”接口。
+ * 把它转给 periph_uart_fputc() 之后，printf 最终就会走到 OSAL 的 USART 组件。 */
 int fputc(int ch, FILE *f)
 {
   return periph_uart_fputc(ch, f);
 }
 
-/* 单次软件定时器回调示例。 */
+/* 单次软件定时器回调示例。
+ * 它只会执行一次，用来观察“单次定时器是否按时触发”。 */
 static void oneshot_timer_callback(void *arg)
 {
   (void)arg;
@@ -82,7 +88,8 @@ static void oneshot_timer_callback(void *arg)
   LOGE("oneshot timer: %lu\r\n", (unsigned long)now);
 }
 
-/* 周期软件定时器回调示例。 */
+/* 周期软件定时器回调示例。
+ * 它会周期性执行，用来观察软件定时器的节拍是否稳定。 */
 static void periodic_timer_callback(void *arg)
 {
   (void)arg;
@@ -90,7 +97,15 @@ static void periodic_timer_callback(void *arg)
   LOGI("periodic timer: %lu\r\n", (unsigned long)now);
 }
 
-/* 点灯任务只做一件事：翻转一次 LED，然后休眠自己的周期。 */
+/* 点灯任务示例。
+ * 这个任务每次被调度到时只做两件事：
+ * 1. 翻转一次 LED。
+ * 2. 让自己休眠一个周期。
+ *
+ * 这样写的好处是：
+ * 1. 单次执行足够短。
+ * 2. 不会长时间占住 CPU。
+ * 3. 很符合协作式任务“做一点就 return”的习惯。 */
 static void led_task(void *arg)
 {
   led_task_ctx_t *ctx = (led_task_ctx_t *)arg;
@@ -100,15 +115,17 @@ static void led_task(void *arg)
     return;
   }
 
+  /* 真正翻转哪一个 LED，不在这里写死，而是由参数里的函数指针决定。 */
   ctx->toggle();
+  /* 这里不是忙等延时，而是把当前任务挂起到指定毫秒后再恢复。 */
   (void)osal_task_sleep(NULL, ctx->interval_ms);
 }
 
-/* 队列发送任务：
- * 1. 每 1 秒组一个结构体消息。
- * 2. 队列满时使用 OSAL_WAIT_FOREVER，当前任务会真正进入 BLOCKED。
- * 3. 一旦接收方取走消息，队列会主动唤醒等待发送的任务。
- */
+/* 队列发送任务。
+ * 这段代码重点演示三件事：
+ * 1. 队列消息项可以直接定义成结构体。
+ * 2. 队列满时，不需要 while 死循环轮询，可以直接进入真正阻塞。
+ * 3. 一旦接收方取走消息，等待发送的任务会被事件驱动唤醒。 */
 static void queue_producer_task(void *arg)
 {
   queue_message_t message;
@@ -120,12 +137,16 @@ static void queue_producer_task(void *arg)
     return;
   }
 
+  /* 先给这条消息分配一个自增序号。 */
   message.sequence = g_queue_sequence++;
+  /* 再把 payload 填成“序号 + 偏移”的形式，方便接收侧观察数据变化。 */
   for (i = 0U; i < (uint32_t)sizeof(message.payload); ++i)
   {
     message.payload[i] = (uint8_t)(message.sequence + i);
   }
 
+  /* 如果队列已满，这里不会 while 轮询，而是把当前任务挂起。
+   * 等到队列出现空位后，系统会再把这个任务唤醒。 */
   if (osal_queue_send_timeout(g_demo_queue, &message, OSAL_WAIT_FOREVER) == OSAL_OK)
   {
 //        printf("queue send: seq=%lu first=%u count=%lu\r\n",
@@ -134,14 +155,15 @@ static void queue_producer_task(void *arg)
 //               (unsigned long)osal_queue_get_count(g_demo_queue));
   }
 
+  /* 这个发送任务是典型的周期任务，所以用 sleep_until 比 sleep 更稳。 */
   (void)osal_task_sleep_until(NULL, 1000U);
 }
 
-/* 队列接收任务：
- * 1. recv_timeout(..., OSAL_WAIT_FOREVER) 表示没消息时当前任务阻塞等待。
- * 2. send / send_from_isr 成功后，等待接收的任务会被直接置为 READY。
- * 3. 当前示例保持最小化，只在收发成功时预留打印位置。
- */
+/* 队列接收任务。
+ * 这个任务用来配合发送任务演示：
+ * 1. 没有消息时，接收任务会进入 BLOCKED，而不是占着 CPU 不放。
+ * 2. 一旦队列里出现新消息，等待接收的任务会被主动唤醒。
+ * 3. 队列等待已经是事件驱动的，不再是单纯轮询。 */
 static void queue_consumer_task(void *arg)
 {
   queue_message_t message;
@@ -152,6 +174,7 @@ static void queue_consumer_task(void *arg)
     return;
   }
 
+  /* 如果当前队列为空，这里会把任务挂起到“等待可读”链表里。 */
   if (osal_queue_recv_timeout(g_demo_queue, &message, OSAL_WAIT_FOREVER) == OSAL_OK)
   {
 //        printf("queue recv: seq=%lu bytes=%u,%u count=%lu\r\n",
@@ -162,7 +185,8 @@ static void queue_consumer_task(void *arg)
   }
 }
 
-/* RTT 示例任务：每 500ms 打印一次当前 tick。 */
+/* RTT 示例任务：每 500ms 打印一次当前 tick。
+ * 它非常适合用来观察任务周期有没有明显漂移。 */
 void SEGGER_RTT_Test(void *arg)
 {
   static bool s_rtt_initialized = false;
@@ -179,7 +203,8 @@ void SEGGER_RTT_Test(void *arg)
 }
 
 #if OSAL_CFG_ENABLE_FLASH && OSAL_PLATFORM_ENABLE_FLASH_DEMO
-/* 打印一段 Flash 回读数据，便于观察不同位宽的实际写入结果。 */
+/* 打印一段 Flash 回读数据。
+ * 一旦写入失败或校验失败，串口里可以直接看到原始字节。 */
 static void flash_demo_dump_bytes(const char *label, const uint8_t *data, uint32_t length)
 {
   uint32_t i;
@@ -198,7 +223,8 @@ static bool flash_demo_verify(const uint8_t *expected, const uint8_t *actual, ui
   return (memcmp(expected, actual, length) == 0);
 }
 
-/* 执行一次“写入 + 回读 + 比对”的宽度测试。 */
+/* 执行一次“写入 + 回读 + 比对”的完整位宽测试。
+ * 这样每种位宽都能复用同一套结果输出逻辑。 */
 static void flash_demo_report_result(periph_flash_t *flash,
                                      const char *label,
                                      osal_status_t write_status,
@@ -211,6 +237,7 @@ static void flash_demo_report_result(periph_flash_t *flash,
 
   memset(readback, 0, sizeof(readback));
 
+  /* 如果底层写入函数本身就失败了，这里不再继续做无意义的回读。 */
   if (write_status != OSAL_OK)
   {
     printf("%s failed, status=%d\r\n", label, (int)write_status);
@@ -281,7 +308,9 @@ static void flash_demo_test_u64(periph_flash_t *flash, uint32_t address)
   flash_demo_report_result(flash, "flash u64", status, address, expected, sizeof(expected));
 }
 
-/* Flash 示例任务：分别测试 8/16/32/64 位写入接口。 */
+/* Flash 示例任务。
+ * 它会依次测试 u8 / u16 / u32 / u64 四种写入接口，
+ * 帮助用户直接判断当前芯片在当前板级条件下到底支持哪种位宽。 */
 static void flash_demo_task(void *arg)
 {
   flash_demo_ctx_t *ctx = (flash_demo_ctx_t *)arg;
@@ -294,6 +323,7 @@ static void flash_demo_task(void *arg)
 
   ctx->done = true;
 
+  /* 先解锁，再擦除，再逐个测试不同位宽。 */
   printf("flash demo start @ 0x%08lX\r\n", (unsigned long)base);
   if (periph_flash_unlock(ctx->flash) != OSAL_OK)
   {
@@ -317,9 +347,8 @@ static void flash_demo_task(void *arg)
 }
 #endif
 
-/* 初始化两个低优先级点灯任务。 */
-
-/* 初始化两个低优先级点灯任务。 */
+/* 初始化两个低优先级点灯任务。
+ * 这两个任务都很轻，只负责“背景效果”，所以适合放低优先级。 */
 static void app_led_demo_init(void)
 {
   osal_task_t *led1_task;
@@ -387,6 +416,7 @@ static void app_timer_demo_init(void)
   }
 }
 
+/* 初始化 RTT 周期打印任务。 */
 static void app_rtt_demo_init(void)
 {
   osal_task_t *rtt_task = osal_task_create(SEGGER_RTT_Test, NULL, OSAL_TASK_PRIORITY_MEDIUM);
@@ -398,7 +428,8 @@ static void app_rtt_demo_init(void)
 }
 
 #if OSAL_CFG_ENABLE_FLASH && OSAL_PLATFORM_ENABLE_FLASH_DEMO
-/* 初始化可选的 Flash 示例任务。 */
+/* 初始化可选的 Flash 示例任务。
+ * 这里只负责创建测试任务，不在初始化阶段直接擦写 Flash。 */
 static void app_flash_demo_init(void)
 {
   osal_task_t *task;
@@ -414,8 +445,10 @@ static void app_flash_demo_init(void)
 #endif
 
 
-static osal_event_t *s_example_event = NULL;
+static osal_event_t *s_example_event = NULL; /* 事件示例共用的事件对象。 */
 
+/* 事件等待任务。
+ * 没有事件时，任务会等待；事件到来时，任务会被唤醒。 */
 static void osal_example_event_wait_task(void *arg)
 {
   (void)arg;
@@ -437,6 +470,8 @@ static void osal_example_event_wait_task(void *arg)
   (void)osal_task_sleep(NULL, 100U);
 }
 
+/* 事件置位任务。
+ * 它每 1000ms 置位一次事件，驱动等待任务继续运行。 */
 static void osal_example_event_set_task(void *arg)
 {
   (void)arg;
@@ -450,7 +485,7 @@ static void osal_example_event_set_task(void *arg)
   (void)osal_task_sleep(NULL, 1000U);
 }
 
-
+/* 初始化事件示例。 */
 void osal_example_event_demo_init(void)
 {
   osal_task_t *wait_task;
@@ -474,6 +509,11 @@ void osal_example_event_demo_init(void)
   }
 }
 
+/* 初始化 USART 控制台示例。
+ * 这段代码演示：
+ * 1. 如何创建平台串口对象；
+ * 2. 如何绑定成 printf 控制台；
+ * 3. 如何混合使用 printf 和 periph_uart_write_xxx。 */
 void osal_example_usart_demo_init(void)
 {
   static const uint8_t raw_bytes[] = {'a', 'b', 'c', '\r', '\n'};
@@ -546,12 +586,17 @@ int main(void)
 
   /* USER CODE END SysInit */
 
-  /* Initialize all configured peripherals */
+  /* 初始化板级工程自身的基础外设。 */
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
 
+  /* 下面开始接入 OSAL。
+   * 推荐顺序是：
+   * 1. 先 osal_init()。
+   * 2. 再初始化你想启用的示例任务和组件。
+   * 3. 最后在 while(1) 里持续调用 osal_run()。 */
   osal_init();
   osal_example_usart_demo_init();
   app_led_demo_init();

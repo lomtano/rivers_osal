@@ -1,4 +1,4 @@
-#ifndef _SEGGER_RTT_FORMATTER_H_
+О╩©#ifndef _SEGGER_RTT_FORMATTER_H_
 #define _SEGGER_RTT_FORMATTER_H_
 #include "SEGGER_RTT.h"
 
@@ -14,13 +14,13 @@
                           ##__VA_ARGS__,            \
                           RTT_CTRL_RESET)
 
-/* гЕфа*/
+/* Ф╦┘Е╠▐*/
 #define LOG_CLEAR() SEGGER_RTT_WriteString(0, "  "RTT_CTRL_CLEAR)
 
-/* нчяуи╚хуж╬йДЁЖ */
+/* Ф≈═И╒°Х┴╡Ф≈╔Е©≈Х╬⌠Е┤╨ */
 #define LOG(format,...) LOG_PROTO("","",format,##__VA_ARGS__)
 
-/* спяуи╚╦Яй╫хуж╬йДЁЖ */
+/* Ф°┴И╒°Х┴╡Ф═╪Е╪▐Ф≈╔Е©≈Х╬⌠Е┤╨ */
 #define LOGI(format,...) LOG_PROTO("I: ", RTT_CTRL_TEXT_BRIGHT_GREEN , format, ##__VA_ARGS__)
 #define LOGW(format,...) LOG_PROTO("W: ", RTT_CTRL_TEXT_BRIGHT_YELLOW, format, ##__VA_ARGS__)
 #define LOGE(format,...) LOG_PROTO("E: ", RTT_CTRL_TEXT_BRIGHT_RED   , format, ##__VA_ARGS__)
@@ -35,4 +35,5 @@
 #endif
 
 #endif // !_SEGGER_RTT_FORMATTER_H_
+
 

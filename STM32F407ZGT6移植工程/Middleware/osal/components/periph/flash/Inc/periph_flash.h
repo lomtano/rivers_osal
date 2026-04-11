@@ -1,4 +1,4 @@
-#ifndef PERIPH_FLASH_H
+﻿#ifndef PERIPH_FLASH_H
 #define PERIPH_FLASH_H
 
 #include <stdint.h>
@@ -14,7 +14,9 @@ extern "C" {
 
 typedef struct periph_flash periph_flash_t;
 
+/* 桥接层按不同位宽分别暴露写接口，组件层不再替用户自动猜测该选哪种写入宽度。 */
 typedef struct {
+    /* context 由 create() 传入，很多片内 Flash 场景下可以为 NULL。 */
     osal_status_t (*unlock)(void *context);
     osal_status_t (*lock)(void *context);
     osal_status_t (*erase)(void *context, uint32_t address, uint32_t length);
@@ -44,6 +46,7 @@ typedef struct {
  * @param bridge 目标 MCU SDK 对应的桥接回调表。
  * @param context 回传给桥接回调的用户上下文。
  * @return 成功时返回 Flash 组件句柄，失败时返回 NULL。
+ * @note 组件不会替你判断“哪种位宽更合适”，位宽由调用哪个 write_uX 接口来决定。
  */
 periph_flash_t *periph_flash_create(const periph_flash_bridge_t *bridge, void *context);
 
@@ -73,6 +76,7 @@ osal_status_t periph_flash_lock(periph_flash_t *flash);
  * @param address 起始地址。
  * @param length 擦除请求覆盖的字节数。
  * @return OSAL 状态码。
+ * @note address/length 的对齐、扇区映射、页映射由具体桥接层自己处理。
  */
 osal_status_t periph_flash_erase(periph_flash_t *flash, uint32_t address, uint32_t length);
 
@@ -83,6 +87,7 @@ osal_status_t periph_flash_erase(periph_flash_t *flash, uint32_t address, uint32
  * @param data 目标缓冲区。
  * @param length 要读取的字节数。
  * @return OSAL 状态码。
+ * @note 如果桥接层没提供 read 回调，某些平台实现会退回到“按内存映射直接读”。
  */
 osal_status_t periph_flash_read(periph_flash_t *flash, uint32_t address, uint8_t *data, uint32_t length);
 
@@ -127,3 +132,7 @@ osal_status_t periph_flash_write_u64(periph_flash_t *flash, uint32_t address, ui
 #endif
 
 #endif /* PERIPH_FLASH_H */
+
+
+
+

@@ -1,4 +1,11 @@
-# 更新日志
+﻿# 更新日志
+
+## 2026-04-11
+
+- 修复并重写一批中文注释，统一为更适合新手阅读的说明风格。
+- 新增 `docs/` 文档目录，集中放置各模块原理说明。
+- 补充 `osal.h`、`osal_task.h`、`osal_queue.h` 的总入口与核心接口说明。
+- 补充 `main.c` 和 `osal_integration_stm32f4.c` 的示例段落注释。
 
 ## 2026-04-06
 
@@ -7,8 +14,8 @@
   - `__get_PRIMASK()`
   - `__disable_irq()`
   - `__enable_irq()`
-- 将 `SysTick` 和中断控制器的核心配置收回 `system` 层。
-- `osal_init()` 现在会自动完成：
+- 将 `SysTick` 和中断控制器的核心配置收回到 `system` 层。
+- `osal_init()` 自动完成：
   - 中断分组配置
   - `SysTick` 优先级配置
   - `SysTick` 周期 / 使能 / 中断开关配置
@@ -16,8 +23,7 @@
   - 分组：`Group 4`
   - `SysTick`：最低优先级
 - `osal_platform_cortexm.*` 明确为模板文件，不参与当前工程编译。
-- `main.c` 继续保持只需包含 `osal.h` 的接入方式。
-- 合并说明文档，删除冗余 Markdown，保留 `README.md` 和 `CHANGELOG.md` 两份主文档。
+- `main.c` 保持“只需包含 `osal.h`”的接入方式。
 
 ## 2026-03-31
 
@@ -42,3 +48,4 @@
   - 内存管理
   - 中断抽象
   - USART / Flash 桥接组件
+

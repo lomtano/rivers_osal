@@ -27,11 +27,40 @@ Project File Date:  04/06/2026
 <h2>Output:</h2>
 *** Using Compiler 'V5.06 update 7 (build 960)', folder: 'D:\APP\Keil5\ARM\ARMCC\Bin'
 Build target 'rivers_osal'
+compiling stm32f4xx_it.c...
 compiling osal_platform.c...
+compiling osal_mutex.c...
+..\Middleware\osal\system\Src\osal_mutex.c(30): warning:  #177-D: function "osal_mutex_contains"  was declared but never referenced
+  static bool osal_mutex_contains(osal_mutex_t *mutex) {
+..\Middleware\osal\system\Src\osal_mutex.c: 1 warning, 0 errors
+compiling osal_timer.c...
+compiling periph_uart.c...
+..\Middleware\osal\components\periph\usart\Src\periph_uart.c(36): warning:  #177-D: function "periph_uart_contains"  was declared but never referenced
+  static bool periph_uart_contains(periph_uart_t *uart) {
+..\Middleware\osal\components\periph\usart\Src\periph_uart.c: 1 warning, 0 errors
+compiling main.c...
+compiling osal_event.c...
+..\Middleware\osal\system\Src\osal_event.c(31): warning:  #177-D: function "osal_event_contains"  was declared but never referenced
+  static bool osal_event_contains(osal_event_t *evt) {
+..\Middleware\osal\system\Src\osal_event.c: 1 warning, 0 errors
+compiling osal_queue.c...
+..\Middleware\osal\system\Src\osal_queue.c(66): warning:  #177-D: function "osal_queue_contains"  was declared but never referenced
+  static bool osal_queue_contains(osal_queue_t *q) {
+..\Middleware\osal\system\Src\osal_queue.c: 1 warning, 0 errors
+compiling osal_platform_stm32f4.c...
+compiling periph_flash.c...
+..\Middleware\osal\components\periph\flash\Src\periph_flash.c(35): warning:  #177-D: function "periph_flash_contains"  was declared but never referenced
+  static bool periph_flash_contains(periph_flash_t *flash) {
+..\Middleware\osal\components\periph\flash\Src\periph_flash.c: 1 warning, 0 errors
+compiling osal_mem.c...
+..\Middleware\osal\system\Src\osal_mem.c(118): warning:  #177-D: function "osal_mempool_contains"  was declared but never referenced
+  static bool osal_mempool_contains(osal_mempool_t *mp) {
+..\Middleware\osal\system\Src\osal_mem.c: 1 warning, 0 errors
+compiling osal_task.c...
 linking...
-Program Size: Code=14604 RO-data=572 RW-data=204 ZI-data=6740  
+Program Size: Code=16884 RO-data=572 RW-data=216 ZI-data=6744  
 FromELF: creating hex file...
-"rivers_osal\rivers_osal.axf" - 0 Error(s), 0 Warning(s).
+"rivers_osal\rivers_osal.axf" - 0 Error(s), 6 Warning(s).
 
 <h2>Software Packages used:</h2>
 
@@ -55,7 +84,7 @@ Package Vendor: Keil
 
    * Component: ARM::CMSIS:CORE@6.1.0
       Include file:  CMSIS/Core/Include/tz_context.h
-Build Time Elapsed:  00:00:02
+Build Time Elapsed:  00:00:08
 </pre>
 </body>
 </html>

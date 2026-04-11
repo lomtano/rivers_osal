@@ -54,3 +54,4 @@ rivers_osal\main.o: ../Middleware/osal/components/periph/usart/Inc/periph_uart.h
 rivers_osal\main.o: D:\APP\Keil5\ARM\ARMCC\Bin\..\include\stdio.h
 rivers_osal\main.o: ../Middleware/osal/components/periph/flash/Inc/periph_flash.h
 rivers_osal\main.o: ../Middleware/osal/platform/example/stm32f4/osal_platform_stm32f4.h
+rivers_osal\main.o: D:\APP\Keil5\ARM\ARMCC\Bin\..\include\string.h
