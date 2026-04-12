@@ -25,8 +25,27 @@ typedef enum {
     OSAL_ERR_PARAM = 4,
     OSAL_ERR_NOMEM = 5,
     OSAL_ERR_ISR = 6,
+    OSAL_ERR_BLOCKED = 7,
+    OSAL_ERR_DELETED = 8,
     OSAL_RESERVED = 0x7FFFFFFF
 } osal_status_t;
+
+/*
+ * 状态码约定补充：
+ * 1. OSAL_ERR_RESOURCE
+ *    资源当前不可用，但这次调用没有进入阻塞等待。
+ *    典型场景：
+ *    - 非阻塞 queue send 时队列已满
+ *    - 非阻塞 queue recv 时队列为空
+ *    - event/mutex 在 timeout=0U 时条件不满足
+ * 2. OSAL_ERR_BLOCKED
+ *    当前任务已经被挂到等待链表，并切到 BLOCKED。
+ *    这不是最终失败，而是“本轮 API 调用先结束，等待后续唤醒”。
+ * 3. OSAL_ERR_TIMEOUT
+ *    任务曾经进入等待，最终因超时恢复。
+ * 4. OSAL_ERR_DELETED
+ *    任务曾经进入等待，但等待对象在等待期间被删除。
+ */
 
 /*
  * ---------------------------------------------------------------------------

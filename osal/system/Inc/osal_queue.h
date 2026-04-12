@@ -141,7 +141,9 @@ osal_status_t osal_queue_recv(osal_queue_t *q, void *item);
  * @return
  * - OSAL_OK：发送成功。
  * - OSAL_ERR_TIMEOUT：等待超时。
- * - OSAL_ERR_RESOURCE：当前轮还未满足资源，任务已经被挂起或本次不等待失败。
+ * - OSAL_ERR_RESOURCE：队列已满，且本次不等待。
+ * - OSAL_ERR_BLOCKED：当前任务已经进入 BLOCKED，并挂到“等待可写”链表。
+ * - OSAL_ERR_DELETED：等待期间队列被删除。
  * - 其他状态：参数错误、非法句柄或错误上下文。
  *
  * @note 这个接口是当前队列最重要的使用方式之一。
@@ -170,7 +172,9 @@ osal_status_t osal_queue_send_timeout(osal_queue_t *q, const void *item, uint32_
  * @return
  * - OSAL_OK：接收成功。
  * - OSAL_ERR_TIMEOUT：等待超时。
- * - OSAL_ERR_RESOURCE：当前轮还未收到消息，任务已经被挂起或本次不等待失败。
+ * - OSAL_ERR_RESOURCE：队列为空，且本次不等待。
+ * - OSAL_ERR_BLOCKED：当前任务已经进入 BLOCKED，并挂到“等待可读”链表。
+ * - OSAL_ERR_DELETED：等待期间队列被删除。
  * - 其他状态：参数错误、非法句柄或错误上下文。
  *
  * @note 这个接口与 send_timeout() 的思路完全对应：

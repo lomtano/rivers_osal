@@ -45,9 +45,15 @@ void osal_mutex_delete(osal_mutex_t *mutex);
  * @brief 带超时地锁定一个互斥量。
  * @param mutex 互斥量句柄。
  * @param timeout_ms 超时时间，单位为毫秒。
- * @return OSAL 状态码。
+ * @return
+ * - OSAL_OK：成功拿到锁。
+ * - OSAL_ERR_RESOURCE：锁当前不可用，且 timeout_ms=0U，本次不等待。
+ * - OSAL_ERR_BLOCKED：当前任务已经进入 BLOCKED，并挂到互斥量等待链表。
+ * - OSAL_ERR_TIMEOUT：等待超时。
+ * - OSAL_ERR_DELETED：等待期间互斥量被删除。
+ * - 其他状态：参数错误或错误上下文。
  * @note timeout_ms 支持 0U / N / OSAL_WAIT_FOREVER。
- * @note 0U 表示只尝试一次，拿不到锁就立刻返回 OSAL_ERR_TIMEOUT。
+ * @note 0U 表示只尝试一次，拿不到锁就立刻返回 OSAL_ERR_RESOURCE。
  * @note N 毫秒表示最多等待 N 毫秒，超时后返回 OSAL_ERR_TIMEOUT。
  * @note OSAL_WAIT_FOREVER 表示一直等，直到别的任务 unlock 或互斥量被 delete。
  * @note 当前实现只保证最基本的互斥访问，不提供 owner 检查和优先级继承。

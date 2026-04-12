@@ -1,4 +1,4 @@
-﻿/* USER CODE BEGIN Header */
+/* USER CODE BEGIN Header */
 /**
   ******************************************************************************
   * @file           : main.c
@@ -114,7 +114,8 @@ static void led_task(void *arg)
   {
     return;
   }
-
+//  uint32_t now = osal_timer_get_tick();
+//  LOGE("led timer: %lu\r\n", (unsigned long)now);
   /* 真正翻转哪一个 LED，不在这里写死，而是由参数里的函数指针决定。 */
   ctx->toggle();
   /* 这里不是忙等延时，而是把当前任务挂起到指定毫秒后再恢复。 */
@@ -156,13 +157,18 @@ static void queue_producer_task(void *arg)
 //               (unsigned int)message.payload[0],
 //               (unsigned long)osal_queue_get_count(g_demo_queue));
   }
-  else if (status == OSAL_ERR_RESOURCE)
+  else if (status == OSAL_ERR_BLOCKED)
   {
     /*
      * 这里不是“发送失败”，而是当前任务已经因为队列满进入 BLOCKED。
      * 这种情况下必须立刻 return，不能继续往下执行别的 sleep/sleep_until，
      * 否则会把刚建立好的等待状态覆盖掉。
      */
+    return;
+  }
+  else if (status == OSAL_ERR_DELETED)
+  {
+    printf("queue send aborted: queue deleted\r\n");
     return;
   }
 
@@ -186,13 +192,25 @@ static void queue_consumer_task(void *arg)
   }
 
   /* 如果当前队列为空，这里会把任务挂起到“等待可读”链表里。 */
-  if (osal_queue_recv_timeout(g_demo_queue, &message, OSAL_WAIT_FOREVER) == OSAL_OK)
   {
+    osal_status_t status = osal_queue_recv_timeout(g_demo_queue, &message, OSAL_WAIT_FOREVER);
+    if (status == OSAL_OK)
+    {
 //        printf("queue recv: seq=%lu bytes=%u,%u count=%lu\r\n",
 //               (unsigned long)message.sequence,
 //               (unsigned int)message.payload[0],
 //               (unsigned int)message.payload[1],
 //               (unsigned long)osal_queue_get_count(g_demo_queue));
+    }
+    else if (status == OSAL_ERR_BLOCKED)
+    {
+      return;
+    }
+    else if (status == OSAL_ERR_DELETED)
+    {
+      printf("queue recv aborted: queue deleted\r\n");
+      return;
+    }
   }
 }
 
@@ -480,13 +498,18 @@ static void osal_example_event_wait_task(void *arg)
   {
     printf("event wait timeout\r\n");
   }
-  else if (status == OSAL_ERR_RESOURCE)
+  else if (status == OSAL_ERR_BLOCKED)
   {
     /*
      * 这里表示当前任务已经因为“等待事件触发”进入 BLOCKED。
      * 一旦走到这个分支，就必须立即 return，不能再执行后面的 sleep，
      * 否则会覆盖掉事件等待状态。
      */
+    return;
+  }
+  else if (status == OSAL_ERR_DELETED)
+  {
+    printf("event wait aborted: event deleted\r\n");
     return;
   }
 

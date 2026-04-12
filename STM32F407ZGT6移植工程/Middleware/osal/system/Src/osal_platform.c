@@ -113,14 +113,12 @@ static void osal_platform_configure_systick_priority(void) {
 #endif
 }
 
-/* 函数说明：默认平台初始化钩子；若板级适配层提供强定义，会自动覆盖这里。 */
-#if defined(__CC_ARM) && !defined(__clang__)
-__weak void osal_platform_init(void) {
+/* 函数说明：默认平台初始化钩子。
+ * 这里保留一个显式的空实现，表示“内核默认不依赖任何板级外设初始化”。
+ * 如果某个工程确实需要板级初始化逻辑，建议直接在应用初始化阶段显式调用，
+ * 而不是继续依赖 weak 覆盖。 */
+void osal_platform_init(void) {
 }
-#else
-__attribute__((weak)) void osal_platform_init(void) {
-}
-#endif
 
 /* 函数说明：返回 system 层内部维护的 Tick 计数源对象。 */
 const osal_tick_source_t *osal_platform_get_tick_source(void) {

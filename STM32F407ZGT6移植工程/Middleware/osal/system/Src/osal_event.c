@@ -52,6 +52,7 @@ static void osal_event_report(const char *message) {
 }
 
 /* 函数说明：检查事件句柄是否仍在活动链表中。 */
+#if OSAL_CFG_ENABLE_DEBUG
 static bool osal_event_contains(osal_event_t *evt) {
     osal_event_t *current = s_event_list;
 
@@ -64,6 +65,7 @@ static bool osal_event_contains(osal_event_t *evt) {
 
     return false;
 }
+#endif
 
 /* 函数说明：校验事件句柄是否有效。 */
 static bool osal_event_validate_handle(const osal_event_t *evt) {
@@ -237,7 +239,7 @@ static osal_status_t osal_event_try_consume_locked(osal_event_t *evt) {
 
 /*
  * 说明：
- * 1. 返回 OSAL_ERR_RESOURCE 不表示最终失败。
+ * 1. 返回 OSAL_ERR_BLOCKED 不表示最终失败。
  * 2. 它表示“当前任务已经进入 BLOCKED，并挂到事件等待链表上”。
  * 3. 等到事件被 set、被 delete，或者等待超时后，任务才会在后续轮次恢复执行。
  */
@@ -255,7 +257,7 @@ static osal_status_t osal_event_prepare_wait_locked(osal_event_t *evt, uint32_t 
         return OSAL_ERR_PARAM;
     }
     if (osal_task_is_waiting_internal(task, OSAL_TASK_WAIT_EVENT, evt)) {
-        return OSAL_ERR_RESOURCE;
+        return OSAL_ERR_BLOCKED;
     }
 
     status = osal_task_block_current_internal(OSAL_TASK_WAIT_EVENT, evt, timeout_ms);
@@ -264,7 +266,7 @@ static osal_status_t osal_event_prepare_wait_locked(osal_event_t *evt, uint32_t 
     }
 
     osal_event_wait_list_append(&evt->wait_list, task);
-    return OSAL_ERR_RESOURCE;
+    return OSAL_ERR_BLOCKED;
 }
 
 /* 函数说明：消费一次事件等待恢复结果，例如超时或对象被删除。 */
@@ -319,9 +321,9 @@ void osal_event_delete(osal_event_t *evt) {
 
             /*
              * 删除事件对象前，先把所有等待它的任务唤醒。
-             * 恢复状态使用 OSAL_ERR_RESOURCE，表示“等待对象已经不存在”。
+             * 恢复状态使用 OSAL_ERR_DELETED，表示“等待对象已经不存在”。
              */
-            osal_event_wake_all_waiters_locked(current, OSAL_ERR_RESOURCE);
+            osal_event_wake_all_waiters_locked(current, OSAL_ERR_DELETED);
             osal_irq_restore(irq_state);
             osal_mem_free(current);
             return;
@@ -411,7 +413,7 @@ osal_status_t osal_event_wait(osal_event_t *evt, uint32_t timeout_ms) {
     if (timeout_ms == 0U) {
         /* 0U 表示只检查一次当前状态，不进入等待链表。 */
         osal_irq_restore(irq_state);
-        return OSAL_ERR_TIMEOUT;
+        return OSAL_ERR_RESOURCE;
     }
 
     status = osal_event_prepare_wait_locked(evt, timeout_ms);

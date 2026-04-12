@@ -167,14 +167,6 @@ static const periph_flash_bridge_t s_flash_bridge = {
 };
 #endif
 
-/* 函数说明：完成当前平台所需的 OSAL 适配初始化。 */
-void osal_platform_init(void) {
-    /*
-     * 当前工程里 HAL_Init()、时钟配置、GPIO 初始化、USART 初始化仍由 main.c 完成。
-     * 如果你想把串口初始化集中到平台层，可以在这里主动调用 OSAL_PLATFORM_UART_INIT()。
-     */
-}
-
 #if OSAL_CFG_ENABLE_USART
 /* 函数说明：创建当前平台默认控制台 USART 桥接对象。 */
 periph_uart_t *osal_platform_uart_create(void) {

@@ -50,6 +50,7 @@ static void osal_mutex_report(const char *message) {
 }
 
 /* 函数说明：检查互斥量句柄是否仍在活动链表中。 */
+#if OSAL_CFG_ENABLE_DEBUG
 static bool osal_mutex_contains(osal_mutex_t *mutex) {
     osal_mutex_t *current = s_mutex_list;
 
@@ -62,6 +63,7 @@ static bool osal_mutex_contains(osal_mutex_t *mutex) {
 
     return false;
 }
+#endif
 
 /* 函数说明：校验互斥量句柄是否有效。 */
 static bool osal_mutex_validate_handle(const osal_mutex_t *mutex) {
@@ -222,7 +224,7 @@ static osal_status_t osal_mutex_try_lock_locked(osal_mutex_t *mutex) {
 
 /*
  * 说明：
- * 1. 返回 OSAL_ERR_RESOURCE 表示“当前任务已经进入 BLOCKED，并挂入等待链表”。
+ * 1. 返回 OSAL_ERR_BLOCKED 表示“当前任务已经进入 BLOCKED，并挂入等待链表”。
  * 2. 后续真正的恢复结果，会在任务再次进入 osal_mutex_lock() 时统一消费。
  */
 /* 函数说明：把当前任务挂到互斥量等待链表中。 */
@@ -239,7 +241,7 @@ static osal_status_t osal_mutex_prepare_wait_locked(osal_mutex_t *mutex, uint32_
         return OSAL_ERR_PARAM;
     }
     if (osal_task_is_waiting_internal(task, OSAL_TASK_WAIT_MUTEX_LOCK, mutex)) {
-        return OSAL_ERR_RESOURCE;
+        return OSAL_ERR_BLOCKED;
     }
 
     status = osal_task_block_current_internal(OSAL_TASK_WAIT_MUTEX_LOCK, mutex, timeout_ms);
@@ -248,7 +250,7 @@ static osal_status_t osal_mutex_prepare_wait_locked(osal_mutex_t *mutex, uint32_
     }
 
     osal_mutex_wait_list_append(&mutex->wait_list, task);
-    return OSAL_ERR_RESOURCE;
+    return OSAL_ERR_BLOCKED;
 }
 
 /* 函数说明：消费一次互斥量等待恢复结果，例如超时或对象被删除。 */
@@ -300,8 +302,8 @@ void osal_mutex_delete(osal_mutex_t *mutex) {
                 prev->next = current->next;
             }
 
-            /* 删除对象前先把所有等待它的任务唤醒，并告知对象已经失效。 */
-            osal_mutex_wake_all_waiters_locked(current, OSAL_ERR_RESOURCE);
+            /* 删除对象前先把所有等待它的任务唤醒，并明确告知对象已经被删除。 */
+            osal_mutex_wake_all_waiters_locked(current, OSAL_ERR_DELETED);
             osal_irq_restore(irq_state);
             osal_mem_free(current);
             return;
@@ -341,7 +343,7 @@ osal_status_t osal_mutex_lock(osal_mutex_t *mutex, uint32_t timeout_ms) {
     }
     if (timeout_ms == 0U) {
         osal_irq_restore(irq_state);
-        return OSAL_ERR_TIMEOUT;
+        return OSAL_ERR_RESOURCE;
     }
 
     status = osal_mutex_prepare_wait_locked(mutex, timeout_ms);

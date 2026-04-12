@@ -34,6 +34,7 @@ static void periph_uart_link(periph_uart_t *uart) {
 }
 
 /* 函数说明：检查 USART 句柄是否仍在活动链表中。 */
+#if OSAL_CFG_ENABLE_DEBUG
 static bool periph_uart_contains(periph_uart_t *uart) {
     periph_uart_t *current = s_uart_list;
 
@@ -46,6 +47,7 @@ static bool periph_uart_contains(periph_uart_t *uart) {
 
     return false;
 }
+#endif
 
 /* 函数说明：将 USART 对象从活动链表中摘除。 */
 static bool periph_uart_unlink(periph_uart_t *uart) {

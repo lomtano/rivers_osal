@@ -61,7 +61,13 @@ osal_status_t osal_event_clear(osal_event_t *evt);
  * @brief 等待事件触发或超时。
  * @param evt 事件句柄。
  * @param timeout_ms 超时时间，单位为毫秒。
- * @return 成功返回 OSAL_OK，超时返回 OSAL_ERR_TIMEOUT。
+ * @return
+ * - OSAL_OK：事件已触发并被本次 wait 成功消费。
+ * - OSAL_ERR_RESOURCE：事件当前未触发，且 timeout_ms=0U，本次不等待。
+ * - OSAL_ERR_BLOCKED：当前任务已经进入 BLOCKED，并挂到事件等待链表。
+ * - OSAL_ERR_TIMEOUT：等待超时。
+ * - OSAL_ERR_DELETED：等待期间事件对象被删除。
+ * - 其他状态：参数错误或错误上下文。
  * @note timeout_ms 支持 0U / N / OSAL_WAIT_FOREVER。
  * @note 0U 表示只检查一次当前事件状态，不等待。
  * @note N 毫秒表示最多等待 N 毫秒，超时后返回 OSAL_ERR_TIMEOUT。

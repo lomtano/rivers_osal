@@ -125,6 +125,7 @@ static void osal_mempool_link(osal_mempool_t *mp) {
 }
 
 /* 函数说明：检查内存池句柄是否仍在活动链表中。 */
+#if OSAL_CFG_ENABLE_DEBUG
 static bool osal_mempool_contains(osal_mempool_t *mp) {
     osal_mempool_t *current = s_mempool_list;
 
@@ -137,6 +138,7 @@ static bool osal_mempool_contains(osal_mempool_t *mp) {
 
     return false;
 }
+#endif
 
 /* 函数说明：将内存池对象从活动链表中摘除。 */
 static bool osal_mempool_unlink(osal_mempool_t *mp) {

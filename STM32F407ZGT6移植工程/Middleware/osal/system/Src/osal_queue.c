@@ -63,6 +63,7 @@ static void osal_queue_report(const char *message) {
 }
 
 /* 函数说明：检查队列句柄是否仍在活动链表中。 */
+#if OSAL_CFG_ENABLE_DEBUG
 static bool osal_queue_contains(osal_queue_t *q) {
     osal_queue_t *current = s_queue_list;
 
@@ -75,6 +76,7 @@ static bool osal_queue_contains(osal_queue_t *q) {
 
     return false;
 }
+#endif
 
 /* 函数说明：校验队列句柄是否有效。 */
 static bool osal_queue_validate_handle(const osal_queue_t *q) {
@@ -363,7 +365,7 @@ static osal_status_t osal_queue_recv_locked(osal_queue_t *q, void *item) {
 
 /*
  * 说明：
- * 1. 这里返回 OSAL_ERR_RESOURCE 并不表示“最终失败”。
+ * 1. 这里返回 OSAL_ERR_BLOCKED 并不表示“最终失败”。
  * 2. 它表示“当前任务已经被挂起，本次 API 调用先结束，等任务被唤醒后再重新进入同一个 API”。
  * 3. 唤醒后，真正的恢复结果会由 osal_queue_consume_wait_result() 消费。
  */
@@ -388,7 +390,7 @@ static osal_status_t osal_queue_prepare_wait_locked(osal_queue_t *q,
          * 任务已经因为同一个队列、同一种原因挂起过一次了。
          * 这里直接返回“资源仍不可用”，避免重复插入等待链表。
          */
-        return OSAL_ERR_RESOURCE;
+        return OSAL_ERR_BLOCKED;
     }
 
     status = osal_task_block_current_internal(reason, q, timeout_ms);
@@ -398,7 +400,7 @@ static osal_status_t osal_queue_prepare_wait_locked(osal_queue_t *q,
 
     /* 任务控制块已经进入 BLOCKED，这里再把它真正挂进队列的等待链表。 */
     osal_queue_wait_list_append(wait_list, task);
-    return OSAL_ERR_RESOURCE;
+    return OSAL_ERR_BLOCKED;
 }
 
 /*
@@ -511,9 +513,9 @@ void osal_queue_delete(osal_queue_t *q) {
                 prev->next = current->next;
             }
 
-            /* 删除队列前先唤醒所有等待它的任务，告诉它们“等待对象已经不可用了”。 */
-            osal_queue_wake_all_waiters_locked(current, OSAL_TASK_WAIT_QUEUE_SEND, OSAL_ERR_RESOURCE);
-            osal_queue_wake_all_waiters_locked(current, OSAL_TASK_WAIT_QUEUE_RECV, OSAL_ERR_RESOURCE);
+            /* 删除队列前先唤醒所有等待它的任务，明确告诉它们“等待对象已经被删除”。 */
+            osal_queue_wake_all_waiters_locked(current, OSAL_TASK_WAIT_QUEUE_SEND, OSAL_ERR_DELETED);
+            osal_queue_wake_all_waiters_locked(current, OSAL_TASK_WAIT_QUEUE_RECV, OSAL_ERR_DELETED);
             osal_irq_restore(irq_state);
 
             if (current->owns_storage) {
@@ -617,7 +619,7 @@ osal_status_t osal_queue_send_timeout(osal_queue_t *q, const void *item, uint32_
     status = osal_queue_prepare_wait_locked(q, OSAL_TASK_WAIT_QUEUE_SEND, timeout_ms);
     osal_irq_restore(irq_state);
     /*
-     * 返回 OSAL_ERR_RESOURCE 的真正含义是：
+     * 返回 OSAL_ERR_BLOCKED 的真正含义是：
      * 当前任务已经进入 BLOCKED，等待未来某个发送机会，而不是立刻失败。
      */
     return status;
@@ -660,7 +662,7 @@ osal_status_t osal_queue_recv_timeout(osal_queue_t *q, void *item, uint32_t time
     status = osal_queue_prepare_wait_locked(q, OSAL_TASK_WAIT_QUEUE_RECV, timeout_ms);
     osal_irq_restore(irq_state);
     /*
-     * 返回 OSAL_ERR_RESOURCE 的含义同 send_timeout：
+     * 返回 OSAL_ERR_BLOCKED 的含义同 send_timeout：
      * 当前任务已经挂起等待，不代表这次等待最终失败。
      */
     return status;

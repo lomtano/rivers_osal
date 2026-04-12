@@ -33,6 +33,7 @@ static void periph_flash_link(periph_flash_t *flash) {
 }
 
 /* 函数说明：检查 Flash 句柄是否仍在活动链表中。 */
+#if OSAL_CFG_ENABLE_DEBUG
 static bool periph_flash_contains(periph_flash_t *flash) {
     periph_flash_t *current = s_flash_list;
 
@@ -45,6 +46,7 @@ static bool periph_flash_contains(periph_flash_t *flash) {
 
     return false;
 }
+#endif
 
 /* 函数说明：将 Flash 对象从活动链表中摘除。 */
 static bool periph_flash_unlink(periph_flash_t *flash) {

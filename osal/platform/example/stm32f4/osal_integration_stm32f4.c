@@ -86,12 +86,15 @@ static void osal_example_mutex_task(void *arg) {
         printf("%s lock ok, counter=%lu\r\n", name, (unsigned long)s_example_shared_counter);
         (void)osal_mutex_unlock(s_example_mutex);
     }
-    else if (status == OSAL_ERR_RESOURCE) {
+    else if (status == OSAL_ERR_BLOCKED) {
         /*
          * 这里表示当前任务已经因为“等待互斥量可用”进入 BLOCKED。
          * 一旦进入这个分支，就必须立刻 return，不能继续执行下面的 sleep，
          * 否则会把互斥量等待状态覆盖掉。
          */
+        return;
+    } else if (status == OSAL_ERR_DELETED) {
+        printf("%s lock aborted: mutex deleted\r\n", name);
         return;
     }
 
@@ -142,11 +145,14 @@ static void osal_example_event_wait_task(void *arg) {
         printf("event wait ok\r\n");
     } else if (status == OSAL_ERR_TIMEOUT) {
         printf("event wait timeout\r\n");
-    } else if (status == OSAL_ERR_RESOURCE) {
+    } else if (status == OSAL_ERR_BLOCKED) {
         /*
          * 这里说明当前任务已经正式进入“等待事件”的 BLOCKED 状态。
          * 因此本轮函数必须立即 return，不能再继续往下 sleep。
          */
+        return;
+    } else if (status == OSAL_ERR_DELETED) {
+        printf("event wait deleted\r\n");
         return;
     }
 
@@ -256,11 +262,14 @@ static void osal_example_queue_producer_task(void *arg) {
                (unsigned long)message.sequence,
                (unsigned int)message.payload[0],
                (unsigned long)osal_queue_get_count(s_example_queue));
-    } else if (status == OSAL_ERR_RESOURCE) {
+    } else if (status == OSAL_ERR_BLOCKED) {
         /*
          * 这里说明当前任务已经因为队列满而进入 BLOCKED。
          * 这种情况下必须立刻 return，不能继续执行下面的周期 sleep_until。
          */
+        return;
+    } else if (status == OSAL_ERR_DELETED) {
+        printf("queue send aborted: queue deleted\r\n");
         return;
     }
 
@@ -273,18 +282,25 @@ static void osal_example_queue_producer_task(void *arg) {
  * 2. 一旦有任务或 ISR 往队列里发消息，这个接收任务会被直接置为 READY。 */
 static void osal_example_queue_consumer_task(void *arg) {
     osal_example_queue_message_t message;
+    osal_status_t status;
 
     (void)arg;
     if (s_example_queue == NULL) {
         return;
     }
 
-    if (osal_queue_recv_timeout(s_example_queue, &message, OSAL_WAIT_FOREVER) == OSAL_OK) {
+    status = osal_queue_recv_timeout(s_example_queue, &message, OSAL_WAIT_FOREVER);
+    if (status == OSAL_OK) {
         printf("queue recv: seq=%lu bytes=%u,%u count=%lu\r\n",
                (unsigned long)message.sequence,
                (unsigned int)message.payload[0],
                (unsigned int)message.payload[1],
                (unsigned long)osal_queue_get_count(s_example_queue));
+    } else if (status == OSAL_ERR_BLOCKED) {
+        return;
+    } else if (status == OSAL_ERR_DELETED) {
+        printf("queue recv aborted: queue deleted\r\n");
+        return;
     }
 }
 
@@ -448,6 +464,5 @@ void osal_example_flash_demo_once(void) {
     (void)periph_flash_lock(flash);
     printf("flash readback: %02X %02X %02X %02X\r\n",
            readback[0], readback[1], readback[2], readback[3]);
-}
 }
 

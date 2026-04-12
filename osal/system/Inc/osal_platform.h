@@ -276,7 +276,9 @@ typedef struct {
 
 /**
  * @brief 平台初始化钩子。
- * @note 板级适配层可在这里补自己的外设桥接初始化；默认可为空。
+ * @note 当前默认实现是 system 层里的显式空实现。
+ * @note 如果某个工程确实需要板级初始化逻辑，建议在应用初始化阶段显式调用，
+ *       不再依赖 weak 覆写。
  * @note 这里不是给用户手动配置 SysTick 的地方，SysTick 由下面两个 setup 接口自动处理。
  */
 void osal_platform_init(void);

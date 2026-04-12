@@ -56,6 +56,11 @@ osal/
   - `0U` 表示不等待
   - `N` 表示最多等待 `N ms`
   - `OSAL_WAIT_FOREVER` 表示永久等待
+- `event` 和 `mutex` 现在也已统一到“等待链表 + BLOCKED + 事件驱动唤醒”模型。
+- `OSAL_ERR_RESOURCE / OSAL_ERR_BLOCKED / OSAL_ERR_DELETED` 的语义已经拆开：
+  - `OSAL_ERR_RESOURCE`：资源当前不可用，且本次没有进入等待
+  - `OSAL_ERR_BLOCKED`：当前任务已经进入等待链表
+  - `OSAL_ERR_DELETED`：等待对象在等待期间被删除
 
 ## 最小移植步骤
 
@@ -76,6 +81,7 @@ osal/
 - 常规 `tick/uptime` 回绕处理
 - 任务 `sleep/sleep_until` 的阻塞与恢复
 - 队列的等待链表、唤醒链路和超时计算
+- 事件与互斥量的等待链表、唤醒链路和超时计算
 - 软件定时器的下一次到期时间维护
 
 ## 用户仍然需要注意的边界
@@ -83,7 +89,7 @@ osal/
 - 这套调度器是协作式，不是抢占式。
 - 任务函数应尽量短小，做完一小段工作就 return。
 - `delay_us()` / `delay_ms()` 仍然会占用 CPU。
-- `event` 和 `mutex` 当前还没有做成和队列同等级别的事件驱动等待。
+- `mutex` 目前仍是最小实现：没有 owner 检查，也没有优先级继承。
 
 ## 推荐阅读顺序
 

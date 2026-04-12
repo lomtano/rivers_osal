@@ -83,8 +83,6 @@ extern "C" {
 #define OSAL_PLATFORM_LED2_TOGGLE() HAL_GPIO_TogglePin(GPIOF, GPIO_PIN_7)
 #endif
 
-/* 函数说明：完成当前平台所需的 OSAL 适配初始化。 */
-void osal_platform_init(void);
 /* 函数说明：翻转平台示例中的第一个 LED。 */
 void osal_platform_led1_toggle(void);
 /* 函数说明：翻转平台示例中的第二个 LED。 */
