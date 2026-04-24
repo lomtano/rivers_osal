@@ -422,20 +422,22 @@ profiling 改成独立可选功能，由：
 
 本次至少要重写这些文档内容：
 
-- `01-总览与移植边界.md`
-- `02-task-任务调度与延时.md`
-- `03-timer-时基与软件定时器.md`
-- `04-queue-事件驱动消息队列.md`
-- `05-mem-统一堆与内存池.md`
-- `06-irq-event-mutex-platform.md`
+- `01-总览与移植步骤.md`
+- `02-task-协作式任务调度.md`
+- `03-timer-系统时基-软件定时器与延时.md`
+- `04-queue-环形消息队列.md`
+- `05-mem-静态堆与内存池.md`
+- `06-irq-中断控制抽象.md`
+- `07-cortexm-内核外设配置.md`
+- `08-components-外围组件与板级示例.md`
 - `README.md`
 
 其中推荐做以下标题级调整：
 
-1. `04-queue-事件驱动消息队列.md`
+1. `04-queue-环形消息队列.md`
    - 改成与新语义一致的同步超时队列文档标题
-2. `06-irq-event-mutex-platform.md`
-   - 改成只描述 `irq/platform` 的标题
+2. `06-irq-中断控制抽象.md` 与 `07-cortexm-内核外设配置.md`
+   - 分别描述 `irq` 和 `cortexm`，不再把多个模块混在一篇里
 
 ### 10.2 文档内容要求
 

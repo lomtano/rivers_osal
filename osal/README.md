@@ -82,15 +82,14 @@ osal/
 
 ## 推荐阅读顺序
 
-1. `docs/01-总览与移植边界.md`
-2. `docs/02-task-任务调度与延时.md`
-3. `docs/03-timer-时基与软件定时器.md`
-4. `docs/04-queue-事件驱动消息队列.md`
-   当前内容是“环形队列 + 同步重试”语义，文件名为历史保留。
-5. `docs/05-mem-统一堆与内存池.md`
-6. `docs/06-irq-event-mutex-platform.md`
-   当前内容是 `irq / cortexm / platform-example` 边界，文件名为历史保留。
-7. `docs/07-components-外围组件与示例.md`
+1. `docs/01-总览与移植步骤.md`
+2. `docs/02-task-协作式任务调度.md`
+3. `docs/03-timer-系统时基-软件定时器与延时.md`
+4. `docs/04-queue-环形消息队列.md`
+5. `docs/05-mem-静态堆与内存池.md`
+6. `docs/06-irq-中断控制抽象.md`
+7. `docs/07-cortexm-内核外设配置.md`
+8. `docs/08-components-外围组件与板级示例.md`
 
 ## 示例入口
 

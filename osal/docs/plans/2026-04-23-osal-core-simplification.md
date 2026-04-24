@@ -80,12 +80,14 @@
 ### Task 6: 更新 docs 与示例说明
 
 **Files:**
-- Modify: `A:\Embedded_system\cubemx_project\rivers_osal\Middleware\osal\docs\01-总览与移植边界.md`
-- Modify: `A:\Embedded_system\cubemx_project\rivers_osal\Middleware\osal\docs\02-task-任务调度与延时.md`
-- Modify: `A:\Embedded_system\cubemx_project\rivers_osal\Middleware\osal\docs\03-timer-时基与软件定时器.md`
-- Modify: `A:\Embedded_system\cubemx_project\rivers_osal\Middleware\osal\docs\04-queue-事件驱动消息队列.md`
-- Modify: `A:\Embedded_system\cubemx_project\rivers_osal\Middleware\osal\docs\05-mem-统一堆与内存池.md`
-- Modify: `A:\Embedded_system\cubemx_project\rivers_osal\Middleware\osal\docs\06-irq-event-mutex-platform.md`
+- Modify: `A:\Embedded_system\cubemx_project\rivers_osal\Middleware\osal\docs\01-总览与移植步骤.md`
+- Modify: `A:\Embedded_system\cubemx_project\rivers_osal\Middleware\osal\docs\02-task-协作式任务调度.md`
+- Modify: `A:\Embedded_system\cubemx_project\rivers_osal\Middleware\osal\docs\03-timer-系统时基-软件定时器与延时.md`
+- Modify: `A:\Embedded_system\cubemx_project\rivers_osal\Middleware\osal\docs\04-queue-环形消息队列.md`
+- Modify: `A:\Embedded_system\cubemx_project\rivers_osal\Middleware\osal\docs\05-mem-静态堆与内存池.md`
+- Modify: `A:\Embedded_system\cubemx_project\rivers_osal\Middleware\osal\docs\06-irq-中断控制抽象.md`
+- Add: `A:\Embedded_system\cubemx_project\rivers_osal\Middleware\osal\docs\07-cortexm-内核外设配置.md`
+- Modify: `A:\Embedded_system\cubemx_project\rivers_osal\Middleware\osal\docs\08-components-外围组件与板级示例.md`
 - Modify: `A:\Embedded_system\cubemx_project\rivers_osal\Middleware\osal\docs\README.md`
 - Modify: `A:\Embedded_system\cubemx_project\rivers_osal\Middleware\osal\CHANGELOG.md`
 
