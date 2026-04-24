@@ -1,4 +1,4 @@
-﻿/*
+/*
  * osal_timer.c
  * OSAL 定时器子系统。
  * - 周期性 Tick 中断只做时间累加
@@ -9,11 +9,12 @@
 #include "../Inc/osal_timer.h"
 #include "../Inc/osal_irq.h"
 #include "../Inc/osal_mem.h"
-#include "../Inc/osal_platform.h"
+#include "../Inc/osal_cortexm.h"
 #include "../Inc/osal.h"
 #include <stdbool.h>
 #include <stdint.h>
 
+/* 仅供 system 层内部把已知临界区边界送进 DWT profiling。 */
 #if OSAL_CFG_ENABLE_SW_TIMER
 struct osal_timer_entry {
     bool active;                  /* 当前是否处于启动状态。 */
@@ -40,7 +41,7 @@ static uint64_t s_next_expiry_us = 0U;
 #endif
 
 /* 原始计数源由 platform 提供，timer 只读取它，不直接依赖某家 HAL。 */
-static const osal_tick_source_t *s_tick_source = NULL;
+static const osal_cortexm_tick_source_t *s_tick_source = NULL;
 static bool s_tick_source_ready = false;
 static uint32_t s_tick_counter_hz = 0U;
 static uint32_t s_tick_reload_value = 0U;
@@ -74,7 +75,7 @@ static void osal_timer_accumulate_us(uint32_t delta_us) {
 
 /* 函数说明：同步当前平台注册的原始 Tick 源配置。 */
 static void osal_timer_sync_tick_source(void) {
-    const osal_tick_source_t *source = osal_platform_get_tick_source();
+    const osal_cortexm_tick_source_t *source = osal_cortexm_get_tick_source();
     uint32_t counter_hz;
     uint32_t reload_value;
     uint32_t period_ticks;
@@ -224,12 +225,12 @@ static uint64_t osal_timer_get_uptime_us64(void) {
     uint64_t now_us;
     uint32_t extra_us;
 
-    irq_state = osal_irq_disable();
+    irq_state = osal_internal_critical_enter();
     /* 先读“已经完整累计过的时间”。 */
     now_us = s_uptime_us64;
     /* 再把当前这个尚未结束周期中的细粒度偏移补进去。 */
     extra_us = osal_timer_get_subtick_us_locked();
-    osal_irq_restore(irq_state);
+    osal_internal_critical_exit(irq_state);
     /* “粗粒度整 tick 时间 + 当前 tick 内偏移” 才是完整当前时间。 */
     return now_us + (uint64_t)extra_us;
 }
@@ -237,11 +238,13 @@ static uint64_t osal_timer_get_uptime_us64(void) {
 /* 函数说明：初始化 OSAL 系统层和平台时基桥接。 */
 void osal_init(void) {
     /* 板级适配层可在这里初始化自己的桥接对象，例如串口、Flash、LED。 */
-    osal_platform_init();
+    osal_cortexm_init();
     /* 配置中断分组和 SysTick 优先级。 */
-    osal_platform_setup_interrupt_controller();
+    osal_cortexm_setup_interrupt_controller();
+    /* 如果打开了 OSAL_CFG_ENABLE_IRQ_PROFILE，这里会准备临界区测时后端。 */
+    osal_cortexm_profile_init();
     /* 启动并配置 SysTick。 */
-    osal_platform_setup_system_tick();
+    osal_cortexm_setup_system_tick();
     /* 把当前硬件 Tick 源参数同步到 timer 子系统。 */
     osal_timer_sync_tick_source();
 }
@@ -267,10 +270,10 @@ uint32_t osal_timer_get_uptime_us(void) {
         osal_timer_sync_tick_source();
     }
 
-    irq_state = osal_irq_disable();
+    irq_state = osal_internal_critical_enter();
     now_us = s_uptime_us32;
     extra_us = osal_timer_get_subtick_us_locked();
-    osal_irq_restore(irq_state);
+    osal_internal_critical_exit(irq_state);
     /* 32 位接口同样返回“整 tick 累计值 + 子节拍偏移”。 */
     return now_us + extra_us;
 }
@@ -280,9 +283,9 @@ uint32_t osal_timer_get_uptime_ms(void) {
     uint32_t irq_state;
     uint32_t now_ms;
 
-    irq_state = osal_irq_disable();
+    irq_state = osal_internal_critical_enter();
     now_ms = s_uptime_ms32;
-    osal_irq_restore(irq_state);
+    osal_internal_critical_exit(irq_state);
     return now_ms;
 }
 
@@ -334,7 +337,7 @@ int osal_timer_create(uint32_t timeout_us, bool periodic, osal_timer_callback_t 
         return -1;
     }
 
-    irq_state = osal_irq_disable();
+    irq_state = osal_internal_critical_enter();
     for (i = 0; i < OSAL_TIMER_MAX; ++i) {
         if (s_timers[i] == NULL) {
             /* 找到空槽位后，才为它分配一块真正的控制块。 */
@@ -342,7 +345,7 @@ int osal_timer_create(uint32_t timeout_us, bool periodic, osal_timer_callback_t 
                 (struct osal_timer_entry *)osal_mem_alloc((uint32_t)sizeof(struct osal_timer_entry));
 
             if (entry == NULL) {
-                osal_irq_restore(irq_state);
+                osal_internal_critical_exit(irq_state);
                 return -1;
             }
 
@@ -354,12 +357,12 @@ int osal_timer_create(uint32_t timeout_us, bool periodic, osal_timer_callback_t 
             entry->arg = arg;
             /* 控制块放进数组后，timer_id 就是这个槽位下标。 */
             s_timers[i] = entry;
-            osal_irq_restore(irq_state);
+            osal_internal_critical_exit(irq_state);
             return i;
         }
     }
 
-    osal_irq_restore(irq_state);
+    osal_internal_critical_exit(irq_state);
     return -1;
 }
 
@@ -377,10 +380,10 @@ bool osal_timer_start(int timer_id) {
         return false;
     }
 
-    irq_state = osal_irq_disable();
+    irq_state = osal_internal_critical_enter();
     entry = s_timers[timer_id];
     if ((entry == NULL) || (entry->cb == NULL)) {
-        osal_irq_restore(irq_state);
+        osal_internal_critical_exit(irq_state);
         osal_timer_report("start called on inactive timer id");
         return false;
     }
@@ -390,7 +393,7 @@ bool osal_timer_start(int timer_id) {
     /* active 置 true 后，poll 才会把它当成有效定时器处理。 */
     entry->active = true;
     osal_timer_refresh_next_expiry();
-    osal_irq_restore(irq_state);
+    osal_internal_critical_exit(irq_state);
     return true;
 }
 
@@ -407,15 +410,15 @@ void osal_timer_stop(int timer_id) {
         return;
     }
 
-    irq_state = osal_irq_disable();
+    irq_state = osal_internal_critical_enter();
     if (s_timers[timer_id] != NULL) {
         s_timers[timer_id]->active = false;
         /* 停止后重新计算“最近到期时间”，避免 poll 还盯着已经停掉的定时器。 */
         osal_timer_refresh_next_expiry();
-        osal_irq_restore(irq_state);
+        osal_internal_critical_exit(irq_state);
         return;
     }
-    osal_irq_restore(irq_state);
+    osal_internal_critical_exit(irq_state);
     osal_timer_report("stop called on inactive timer id");
 }
 
@@ -432,17 +435,17 @@ void osal_timer_delete(int timer_id) {
         return;
     }
 
-    irq_state = osal_irq_disable();
+    irq_state = osal_internal_critical_enter();
     if (s_timers[timer_id] != NULL) {
         /* 先释放控制块，再把数组槽位置空。 */
         osal_mem_free(s_timers[timer_id]);
         s_timers[timer_id] = NULL;
         /* 删除后重新计算“最近到期时间”。 */
         osal_timer_refresh_next_expiry();
-        osal_irq_restore(irq_state);
+        osal_internal_critical_exit(irq_state);
         return;
     }
-    osal_irq_restore(irq_state);
+    osal_internal_critical_exit(irq_state);
     osal_timer_report("delete called on inactive timer id");
 }
 #endif
@@ -501,10 +504,10 @@ void osal_timer_poll(void) {
     }
 
     if (handled) {
-        uint32_t irq_state = osal_irq_disable();
+        uint32_t irq_state = osal_internal_critical_enter();
         /* 本轮处理过到期定时器后，刷新下一次最早到期的目标时间。 */
         osal_timer_refresh_next_expiry();
-        osal_irq_restore(irq_state);
+        osal_internal_critical_exit(irq_state);
     }
 #else
     /* 软件定时器模块关闭时，这里保持为空操作。 */

@@ -236,7 +236,7 @@ void *osal_mem_alloc(uint32_t size) {
      */
     request_size = osal_mem_align_up(size + (uint32_t)sizeof(osal_heap_block_t));
 
-    irq_state = osal_irq_disable();
+    irq_state = osal_internal_critical_enter();
     prev = NULL;
     current = s_free_list;
 
@@ -275,7 +275,7 @@ void *osal_mem_alloc(uint32_t size) {
             }
             /* 已分配块不应该再带着空闲链表指针。 */
             current->next_free = NULL;
-            osal_irq_restore(irq_state);
+            osal_internal_critical_exit(irq_state);
             /* 返回给用户的是块头之后的净荷地址。 */
             return (uint8_t *)current + sizeof(osal_heap_block_t);
         }
@@ -284,7 +284,7 @@ void *osal_mem_alloc(uint32_t size) {
         current = current->next_free;
     }
 
-    osal_irq_restore(irq_state);
+    osal_internal_critical_exit(irq_state);
     /* 整张空闲链表都找遍后仍没找到足够大的块，说明堆已经无法满足本次申请。 */
     return NULL;
 }
@@ -363,11 +363,11 @@ void osal_mem_free(void *ptr) {
         return;
     }
 
-    irq_state = osal_irq_disable();
+    irq_state = osal_internal_critical_enter();
     /* 先把块状态改回“空闲”，再插回空闲链表。 */
     osal_heap_set_block(block, osal_heap_block_size(block), false);
     osal_mem_insert_free_block(block);
-    osal_irq_restore(irq_state);
+    osal_internal_critical_exit(irq_state);
 }
 
 /* 函数说明：获取统一 OSAL 堆当前剩余的可用字节数。 */
@@ -381,14 +381,14 @@ uint32_t osal_mem_get_free_size(void) {
         return 0U;
     }
 
-    irq_state = osal_irq_disable();
+    irq_state = osal_internal_critical_enter();
     current = s_free_list;
     while (current != NULL) {
         /* 这里统计的是空闲块总大小，包含块头，不是纯净可用净荷大小。 */
         total += osal_heap_block_size(current);
         current = current->next_free;
     }
-    osal_irq_restore(irq_state);
+    osal_internal_critical_exit(irq_state);
 
     return total;
 }
@@ -464,11 +464,11 @@ void *osal_mempool_alloc(osal_mempool_t *mp) {
         return NULL;
     }
 
-    irq_state = osal_irq_disable();
+    irq_state = osal_internal_critical_enter();
     block = mp->free_list;
     /* free_list 的头节点就是本次要分配出去的块。 */
     mp->free_list = *osal_block_next_ptr(block);
-    osal_irq_restore(irq_state);
+    osal_internal_critical_exit(irq_state);
     /* 返回的是块本体地址，不额外带块头。 */
     return block;
 }
@@ -500,11 +500,11 @@ void osal_mempool_free(osal_mempool_t *mp, void *ptr) {
         return;
     }
 
-    irq_state = osal_irq_disable();
+    irq_state = osal_internal_critical_enter();
     /* 头插回 free_list，归还操作就是 O(1)。 */
     *osal_block_next_ptr(block) = mp->free_list;
     mp->free_list = block;
-    osal_irq_restore(irq_state);
+    osal_internal_critical_exit(irq_state);
 }
 
 

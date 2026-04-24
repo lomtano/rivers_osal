@@ -1,182 +1,191 @@
-﻿# task：任务调度与延时
+# task：协作式任务调度
 
 ## 1. 模块职责
 
-`osal_task` 负责：
+`task` 当前只负责协作式调度本身：
 
-- 创建任务对象
-- 将任务插入对应优先级链表
-- 调度高/中/低三档优先级任务
-- 提供普通休眠和周期休眠
-- 管理“当前任务为何阻塞、何时恢复”的状态
+- 创建和删除任务对象
+- 启动和停止任务
+- 管理按优先级划分的任务链表
+- 执行一轮调度
+- 提供一次同步 `yield`
 
-对应核心文件：
+它不再负责任何“等待后恢复”的抽象。
 
-- [osal_task.h](/abs/path/A:/Embedded_system/cubemx_project/rivers_osal/Middleware/osal/system/Inc/osal_task.h)
-- [osal_task.c](/abs/path/A:/Embedded_system/cubemx_project/rivers_osal/Middleware/osal/system/Src/osal_task.c)
+## 2. 任务对象结构
 
-## 2. 调度模型
+当前实现中的任务控制块只保留这些字段：
 
-这套任务调度不是 RTOS 抢占式调度，而是协作式调度。
+```c
+struct osal_task {
+    osal_task_fn_t fn;
+    void *arg;
+    osal_task_state_t state;
+    osal_task_priority_t priority;
+    struct osal_task *next;
+};
+```
 
-也就是说：
+字段含义：
 
-- 任务函数运行时，不会被内核主动打断
-- 任务必须自己尽快返回，或主动进入 `sleep / wait / yield`
-- 如果某个任务一直不返回，会拖住整个系统
+- `fn`
+  任务入口函数
+- `arg`
+  传给任务函数的用户参数
+- `state`
+  当前调度状态
+- `priority`
+  所属优先级链表
+- `next`
+  同优先级链表链接指针
 
-这是整个 OSAL 的基本前提。
+## 3. 状态模型
 
-## 3. 优先级如何体现
+`osal_task_state_t` 只保留三种状态：
 
-当前实现有三档优先级：
+- `OSAL_TASK_READY`
+- `OSAL_TASK_RUNNING`
+- `OSAL_TASK_SUSPENDED`
 
-- `HIGH`
-- `MEDIUM`
-- `LOW`
+状态切换很简单：
 
-调度器策略不是完全平均轮询，而是有偏置：
+- `create` 后初始为 `SUSPENDED`
+- `start` 把任务切到 `READY`
+- 调度器执行任务前切到 `RUNNING`
+- 任务函数返回后，如果仍是 `RUNNING`，调度器把它改回 `READY`
+- `stop` 把任务切到 `SUSPENDED`
 
-- 高优先级：每轮都先查
-- 中优先级：每轮都查，但排在高后面
-- 低优先级：
-  - 高/中都没跑任务时优先补查
-  - 或每隔若干轮强制兜底查一次
+## 4. 调度链表
 
-这意味着：
+### 4.1 全局调度表
 
-- 关键任务能更快拿到执行机会
-- 低优先级不会完全饿死
-- 但仍不具备“高优先级立刻抢占”的 RTOS 行为
+当前调度器维护三条优先级链表：
 
-## 4. 任务控制块里最重要的信息
+```c
+static osal_task_t *s_task_lists[OSAL_TASK_PRIORITY_COUNT];
+```
 
-一个任务对象内部至少维护了这些关键状态：
+优先级从高到低依次为：
 
-- 当前状态
-  - `READY`
-  - `RUNNING`
-  - `BLOCKED`
-  - 其他中间状态
-- 当前优先级
-- 上次被调度时间
-- 周期睡眠的下次唤醒基准
-- 当前等待原因
-- 当前等待对象
-- 当前等待起点 / 超时时间 / 截止时间
-- 恢复结果
-- 普通任务链表指针
-- 等待链表指针
+- `OSAL_TASK_PRIORITY_HIGH`
+- `OSAL_TASK_PRIORITY_MEDIUM`
+- `OSAL_TASK_PRIORITY_LOW`
 
-这些字段的意义是：
+### 4.2 链表操作
 
-- 任务调度器要靠它决定“要不要跑”
-- 队列等待要靠它决定“挂到哪个等待链表”
-- 超时恢复要靠它决定“何时从 BLOCKED 变回 READY”
+内部链表相关函数包括：
 
-## 5. 为什么任务延时是非阻塞的
+- `osal_task_contains()`
+  检查句柄是否仍在调度器管理范围内
+- `osal_task_list_append()`
+  追加到指定优先级链表尾部
+- `osal_task_list_remove()`
+  从指定优先级链表摘除
 
-### 5.1 `osal_task_sleep()`
+## 5. 调度入口与内部流程
 
-它做的不是卡 CPU 500ms，而是：
+### 5.1 `osal_run_priority_list()`
 
-1. 取当前 tick
-2. 记录 `wait_start / wait_timeout / wait_deadline`
-3. 把任务状态改成 `BLOCKED`
-4. 返回给调度器
+这个函数负责按链表顺序扫描某个优先级列表：
 
-之后调度器在扫描链表时发现：
+1. 跳过本轮指定的 `skip_task`
+2. 只执行 `READY` 任务
+3. 调用任务函数前切到 `RUNNING`
+4. 任务返回后，若任务仍在调度器内且状态仍为 `RUNNING`，再切回 `READY`
 
-- 这个任务还没到期
-- 就直接跳过它
+### 5.2 `osal_run_internal()`
 
-所以系统能继续跑别的任务。
+这是调度器的核心一轮逻辑：
 
-### 5.2 `osal_task_sleep_until()`
+1. 增加 `s_scheduler_depth`
+2. 每轮都先跑高优先级
+3. 每轮都再跑中优先级
+4. 低优先级在两种情况下会被扫描：
+   - 本轮高/中优先级都没跑到任务
+   - `s_low_scan_count` 达到 `OSAL_TASK_LOW_SCAN_PERIOD`
+5. 结束后减少 `s_scheduler_depth`
 
-这个接口和普通 `sleep()` 不一样，它是周期接口。
+这样做的目的，是在保证高/中优先级响应性的同时，给低优先级任务保留最小公平性。
 
-作用类似 FreeRTOS 的 `vTaskDelayUntil()`：
+### 5.3 `osal_run()`
 
-- 不是“从当前时刻再睡 N ms”
-- 而是“保持固定周期”
+`osal_run()` 是主循环层入口：
 
-好处是：
+- 先调用 `osal_timer_poll()`
+- 检查当前是否允许进入新一轮调度
+- 再调用 `osal_run_internal(NULL)`
 
-- 周期更稳定
-- 不容易把打印耗时、任务本身执行耗时累积进周期
+## 6. `yield` 的真实语义
 
-## 6. 为什么 `sleep_until()` 比 `sleep()` 更稳
+`osal_task_yield()` 的语义是：
 
-原因在于基准不同。
+1. 先调用 `osal_timer_poll()`
+2. 在当前任务调用栈里同步触发一次嵌套调度
+3. 本轮嵌套调度跳过当前任务自己
+4. 嵌套调度返回后，当前任务继续向下执行
 
-### `sleep()`
+因此它更接近“主动让出一次执行机会”，而不是“把自己挂起等待恢复”。
 
-相对延时：
+## 7. 生命周期接口
 
-- 从“当前调用时刻”往后推 N ms
+### 7.1 `osal_task_create()`
 
-如果任务体本身执行花了 2ms，那么周期就会自然拖长。
+- 只允许在任务态调用
+- 从统一静态堆里分配任务控制块
+- 初始状态为 `SUSPENDED`
+- 自动挂到对应优先级链表
 
-### `sleep_until()`
+### 7.2 `osal_task_start()`
 
-绝对周期：
+- 只允许在任务态调用
+- 把任务状态改成 `READY`
 
-- 以上一次周期锚点为基准，直接推下一次唤醒点
+### 7.3 `osal_task_stop()`
 
-这样任务本身的少量执行耗时通常不会持续累积。
+- 只允许在任务态调用
+- 把任务状态改成 `SUSPENDED`
 
-## 7. 回绕为什么还能安全工作
+### 7.4 `osal_task_delete()`
 
-任务延时比较没有依赖“当前 tick 永不回绕”这个假设，而是依赖差值比较。
+- 只允许在任务态调用
+- 只允许删除当前不在执行中的任务
+- 成功后从优先级链表摘除并释放控制块
 
-典型思路是：
+这里有一个必须明确的边界：
 
-- `now - deadline`
-- 或 `now - start >= timeout`
+- 运行中的任务不能在当前执行轮次里直接 `delete`
+- 因为当前 OSAL 没有独立任务栈，删除正在执行的任务会破坏当前调用链
 
-这种比较方式在 32 位 tick 回绕后短窗口内仍然成立。
+## 8. 延时与周期任务应该怎么写
 
-这也是当前 `sleep`、队列等待、软件定时器超时能长期工作的基础之一。
+`task` 模块已经不提供专门的延时接口。
 
-## 8. 为什么任务函数前要先缓存 next
+如果你想实现“每 500ms 执行一次”的周期任务，推荐做法是：
 
-调度器在遍历任务链表时，不是“取当前节点后立刻直接跳到 current->next”。
+1. 在任务私有上下文里保存 `interval_ms / next_run_ms / initialized`
+2. 每轮调用时用当前 tick 判断是否到期
+3. 到期后执行一次动作
+4. 再把 `next_run_ms` 推到下一次节拍
 
-它通常会先缓存下一个节点指针，再执行任务函数。
+典型模式如下：
 
-原因是：
+```c
+typedef struct {
+    uint32_t interval_ms;
+    uint32_t next_run_ms;
+    bool initialized;
+} periodic_ctx_t;
 
-- 任务函数执行时可能修改任务状态
-- 甚至可能影响链表关系
+static bool tick_reached(uint32_t now_ms, uint32_t deadline_ms) {
+    return ((int32_t)(now_ms - deadline_ms) >= 0);
+}
+```
 
-如果不提前缓存 `next`，当前节点执行后链表结构可能已经变了，遍历就会失稳。
+这种写法与当前 OSAL 的真实执行模型完全一致。
 
-## 9. 当前调度器的边界
+## 9. 使用边界
 
-这套调度的优点是轻量，但边界也很明确：
-
-- 没有抢占
-- 没有上下文切换
-- 没有优先级继承
-- 不适合长时间死循环任务
-- 不适合任务里放长忙等
-
-适合的任务形态是：
-
-- 短小
-- 状态机式
-- 快速返回
-- 等条件时用 `sleep / wait / queue`
-
-## 10. 读源码时建议重点关注的点
-
-读 `osal_task.c` 时建议重点看：
-
-- 任务对象字段定义
-- 任务链表挂接逻辑
-- `make_ready / block_current / consume_wait_result`
-- `sleep / sleep_until`
-- `run_priority_list / run_internal`
-
-这些位置决定了整个 OSAL 的调度行为。
+- 任务函数应尽量短小，做完一小段工作就返回
+- 不要在任务里写长时间死循环等待资源
+- 如果业务依赖跨多轮推进，应自己写状态机
+- 如果确实需要同步等待资源，应优先考虑这个等待是否来自异步硬件路径
