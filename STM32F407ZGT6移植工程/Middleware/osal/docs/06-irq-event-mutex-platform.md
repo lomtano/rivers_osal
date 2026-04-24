@@ -1,184 +1,128 @@
-﻿# irq / event / mutex / platform
+# irq / cortexm / platform-example
 
-## 1. irq：中断抽象
+> 注：本文文件名沿用旧命名，当前内容已经不再解释 `event / mutex`，而是聚焦 `irq / cortexm / platform-example` 的现行边界。
 
-### 模块职责
+## 1. 模块分工
 
-`osal_irq` 负责把：
+当前 `irq`、`cortexm` 和 `platform/example` 的边界如下：
 
-- 中断关闭
-- 中断打开
-- 中断恢复
-- 当前是否处于 ISR
+- `irq`
+  只保留中断开关、状态恢复和 ISR 上下文判断这组最薄的公共接口。
+- `cortexm`
+  承担 SysTick、NVIC Group (4)、DWT profiling backend，以及 CMSIS 宏映射。
+- `platform/example`
+  承担 LED、USART、Flash 这类板级外设示例桥接。
 
-统一成 OSAL 内核使用的入口。
+换句话说：
+- `irq` 负责“对外怎么用中断控制”。
+- `cortexm` 负责“内核到底怎么配置和测量 Cortex-M 外设”。
+- `platform/example` 负责“具体板子外设怎么接到示例工程”。
 
-对应文件：
+## 2. `irq` 模块职责
 
-- [osal_irq.h](/abs/path/A:/Embedded_system/cubemx_project/rivers_osal/Middleware/osal/system/Inc/osal_irq.h)
-- [osal_irq.c](/abs/path/A:/Embedded_system/cubemx_project/rivers_osal/Middleware/osal/system/Src/osal_irq.c)
+当前 `irq` 只保留这些公开接口：
+- `osal_irq_disable()`
+- `osal_irq_enable()`
+- `osal_irq_restore()`
+- `osal_irq_is_in_isr()`
 
-### 实现特点
+### 2.1 中断开关语义
 
-它本身不直接绑定 STM32 HAL，而是依赖：
+- `osal_irq_disable()` 返回的是进入临界区前的原始中断状态快照。
+- `osal_irq_enable()` 是无条件开中断。
+- `osal_irq_restore(prev_state)` 按进入前状态恢复。
 
-- `OSAL_PLATFORM_IRQ_GET_IPSR()`
-- `OSAL_PLATFORM_IRQ_GET_PRIMASK()`
-- `OSAL_PLATFORM_IRQ_RAW_DISABLE()`
-- `OSAL_PLATFORM_IRQ_RAW_ENABLE()`
+### 2.2 profiling 边界
 
-这些宏来自 [osal_platform.h](/abs/path/A:/Embedded_system/cubemx_project/rivers_osal/Middleware/osal/system/Inc/osal_platform.h)。
+`irq` 不再直接承载任何 DWT profiling 统计接口。
+公开 `osal_irq_*` 只表示中断控制，不再隐式计入采样。
 
-### 这意味着什么
+## 3. `cortexm` 模块职责
 
-- system 层不依赖某一家厂商 SDK
-- 只依赖 Cortex-M 风格的 CMSIS 能力
-- 真正的架构绑定由 platform 宏完成
+### 3.1 SysTick / NVIC
 
-## 2. event：轻量事件对象
+`cortexm` 负责这些 OSAL 内核核心依赖：
+- CPU 主频配置
+- SysTick 时钟源与 tick 频率
+- NVIC 优先级分组
+- SysTick 优先级
+- 原始寄存器映射
 
-### 模块职责
+对应入口包括：
+- `osal_cortexm_init()`
+- `osal_cortexm_setup_interrupt_controller()`
+- `osal_cortexm_setup_system_tick()`
+- `osal_cortexm_get_tick_source()`
 
-`osal_event` 提供：
+### 3.2 DWT profiling backend
 
-- `set`
-- `clear`
-- `wait`
+DWT profiling 的配置、采样和换算都已经收拢到 `cortexm`：
+- `osal_cortexm_profile_init()`
+- `osal_cortexm_profile_is_supported()`
+- `osal_cortexm_profile_reset()`
+- `osal_cortexm_profile_get_stats()`
+- `osal_cortexm_profile_cycles_to_ns()`
+- `osal_cortexm_profile_cycles_to_us()`
 
-并支持 `auto_reset` 语义。
+统计结构体为 `osal_cortexm_profile_stats_t`，包含：
+- profiling 是否启用
+- 当前内核是否支持 DWT 测量
+- CPU 主频
+- 样本数
+- 最近一次、最小、最大、平均 cycle
+- 对应的 ns 换算值
 
-### 当前实现方式
+### 3.3 只统计 system 内部临界区
 
-当前 `wait` 不是队列那种事件驱动阻塞，而是：
+当前 DWT 统计不再挂在公开 `osal_irq_disable/restore` 上。
+真正参与采样的是 `system/Src` 内部的私有临界区包装：
+- `osal_internal_critical_enter()`
+- `osal_internal_critical_exit()`
 
-1. 检查事件状态
-2. 不满足则 `yield`
-3. 再次回来继续检查
+因此现在的统计范围只覆盖 `system` 内核层内部临界区，例如：
+- `mem`
+- `queue`
+- `timer`
 
-所以它本质上是：
+外部应用代码即使直接调用 `osal_irq_disable()`，也不会被统计进去。
+`components` 层和 `platform/example` 也不在这组采样范围内。
 
-- 轮询
-- 但会主动让出执行权
+## 4. profiling 开关
 
-### 适合什么场景
+profiling 是否启用仍然只受下面这个配置控制：
+- `OSAL_CFG_ENABLE_IRQ_PROFILE`
 
-适合：
+只有当：
+- `OSAL_CFG_ENABLE_IRQ_PROFILE != 0`
+- 且 `OSAL_CORTEXM_HAS_DWT_CYCCNT != 0`
 
-- 简单同步
-- 低复杂度事件通知
+`osal_init()` 才会在启动阶段配置 DWT 计数器。
 
-不适合：
+## 5. 当前平台支持边界
 
-- 高竞争
-- 大量任务等待同一事件
-- 对调度效率敏感的场景
+关于 `DWT CYCCNT`，当前文档边界是：
+- `Cortex-M0 / M0+` 默认不支持
+- `Cortex-M3 / M4 / M7` 通常支持
+- 当前 `STM32F407` 是 `Cortex-M4`，默认按支持处理
 
-## 3. mutex：最小互斥实现
+如果移植到不支持 DWT 的内核：
+- profiling 接口仍然存在
+- 但 `osal_cortexm_profile_get_stats()` 会返回“当前不可测量”
 
-### 模块职责
+## 6. 时间换算
 
-`osal_mutex` 提供最小互斥量：
+cycle 到时间的换算统一使用：
+- `OSAL_CORTEXM_CPU_CLOCK_HZ`
 
-- `create`
-- `lock`
-- `unlock`
+因此：
+- `osal_cortexm_profile_cycles_to_ns()`
+- `osal_cortexm_profile_cycles_to_us()`
 
-### 当前实现方式
+都依赖这项主频配置正确。
 
-当前 `lock` 大体是：
+## 7. 使用边界
 
-1. 进临界区检查 `locked`
-2. 如果能拿到锁就返回
-3. 否则 `yield`
-4. 再回来重试
-
-### 当前限制
-
-这不是 RTOS 级互斥量，因为它没有：
-
-- owner 记录
-- 优先级继承
-- 等待队列
-
-所以它的定位应该是：
-
-- 轻量资源保护
-- 低冲突使用
-
-而不是复杂实时互斥场景。
-
-## 4. platform：system 层如何接管 SysTick 和 NVIC
-
-### 模块职责
-
-`osal_platform` 是 system 内部的架构抽象层。
-
-它负责：
-
-- 配置中断分组
-- 配置 SysTick 优先级
-- 配置 SysTick 时钟源
-- 配置 SysTick 重装值
-- 暴露原始 tick source 给 timer 模块
-
-对应文件：
-
-- [osal_platform.h](/abs/path/A:/Embedded_system/cubemx_project/rivers_osal/Middleware/osal/system/Inc/osal_platform.h)
-- [osal_platform.c](/abs/path/A:/Embedded_system/cubemx_project/rivers_osal/Middleware/osal/system/Src/osal_platform.c)
-
-### 当前设计理念
-
-原则是：
-
-- 跟 `SysTick/NVIC/IRQ` 有关的核心机制，放在 system
-- 跟具体 UART/Flash/LED/SDK 有关的桥接，放在 `platform/example/<board>`
-
-### 为什么要这么分
-
-因为：
-
-- `SysTick/NVIC` 是 OSAL 内核正常工作的必要部分
-- 不是“某个外设组件”
-- 应该由内核自己掌控
-
-反过来：
-
-- 串口、Flash、LED 不属于内核最小闭环
-- 这些桥接放板级适配更合理
-
-## 5. platform/example/stm32f4 的定位
-
-当前具体板级适配文件是：
-
-- [osal_platform_stm32f4.h](/abs/path/A:/Embedded_system/cubemx_project/rivers_osal/Middleware/osal/platform/example/stm32f4/osal_platform_stm32f4.h)
-- [osal_platform_stm32f4.c](/abs/path/A:/Embedded_system/cubemx_project/rivers_osal/Middleware/osal/platform/example/stm32f4/osal_platform_stm32f4.c)
-
-它负责：
-
-- USART bridge
-- Flash bridge
-- LED 示例桥接
-
-它不应该负责：
-
-- 内核 SysTick 主逻辑
-- 内核调度逻辑
-- 内存管理逻辑
-
-## 6. 当前边界的价值
-
-现在这套边界的价值在于：
-
-- OSAL system 层不需要知道 `HAL_UART_Transmit`
-- 也不需要知道某家 Flash SDK API 名字
-- 以后换 STM32/GD32/N32 时，主要改 platform/example
-
-## 7. 仍需明确写进文档的限制
-
-文档里应明确：
-
-- 这不是完全架构无关的抽象
-- 它依赖 Cortex-M 的 `SysTick` 和 `NVIC`
-- 对非 Cortex-M，必须先改 `osal_platform`
-
-否则读者容易误以为它可以零改动搬到任意 32 位 MCU。
+- `irq` 不负责板级外设桥接。
+- `cortexm` 不负责 LED / USART / Flash 这类板级示例外设。
+- `platform/example` 不负责 OSAL 内核的 SysTick / NVIC / DWT 配置。
+- 如果工程只需要中断开关而不需要 profiling，可以直接关闭 `OSAL_CFG_ENABLE_IRQ_PROFILE`。

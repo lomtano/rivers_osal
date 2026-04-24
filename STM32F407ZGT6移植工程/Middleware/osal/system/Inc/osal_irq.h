@@ -1,4 +1,4 @@
-﻿#ifndef OSAL_IRQ_H
+#ifndef OSAL_IRQ_H
 #define OSAL_IRQ_H
 
 #include <stdbool.h>
@@ -11,13 +11,13 @@ extern "C" {
 /**
  * @brief 关闭全局中断并返回当前中断状态快照。
  * @return 供 osal_irq_restore() 使用的中断状态。
- * @note 返回值不是“固定的开/关标志”，而是进入临界区前的原始状态快照。
+ * @note 返回值不是固定的开/关标志，而是进入临界区前的原始状态快照。
  */
 uint32_t osal_irq_disable(void);
 
 /**
- * @brief 重新打开全局中断。
- * @note 这是无条件打开中断；和 restore(prev_state) 的语义不同。
+ * @brief 无条件重新打开全局中断。
+ * @note 它和 osal_irq_restore(prev_state) 的语义不同。
  */
 void osal_irq_enable(void);
 
@@ -35,9 +35,28 @@ void osal_irq_restore(uint32_t prev_state);
  */
 bool osal_irq_is_in_isr(void);
 
+/*
+ * 这组 helper 只给 system 层内部使用。
+ * 它们不是公开的等待/唤醒接口。
+ * mem/queue/timer 通过它们标记已知内核临界区，
+ * 这样 cortexm DWT profiling 统计到的是 OSAL 内核代码，而不是应用代码。
+ */
+void osal_cortexm_profile_enter_internal(void);
+void osal_cortexm_profile_exit_internal(void);
+
+static inline uint32_t osal_internal_critical_enter(void) {
+    uint32_t prev_state = osal_irq_disable();
+    osal_cortexm_profile_enter_internal();
+    return prev_state;
+}
+
+static inline void osal_internal_critical_exit(uint32_t prev_state) {
+    osal_cortexm_profile_exit_internal();
+    osal_irq_restore(prev_state);
+}
+
 #ifdef __cplusplus
 }
 #endif
 
 #endif /* OSAL_IRQ_H */
-

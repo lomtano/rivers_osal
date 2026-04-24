@@ -683,11 +683,6 @@
           <GroupName>Middleware/osal/system</GroupName>
           <Files>
             <File>
-              <FileName>osal_event.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Middleware\osal\system\Src\osal_event.c</FilePath>
-            </File>
-            <File>
               <FileName>osal_irq.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Middleware\osal\system\Src\osal_irq.c</FilePath>
@@ -698,19 +693,14 @@
               <FilePath>..\Middleware\osal\system\Src\osal_mem.c</FilePath>
             </File>
             <File>
-              <FileName>osal_mutex.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Middleware\osal\system\Src\osal_mutex.c</FilePath>
-            </File>
-            <File>
               <FileName>osal_queue.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Middleware\osal\system\Src\osal_queue.c</FilePath>
             </File>
             <File>
-              <FileName>osal_platform.c</FileName>
+              <FileName>osal_cortexm.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\Middleware\osal\system\Src\osal_platform.c</FilePath>
+              <FilePath>..\Middleware\osal\system\Src\osal_cortexm.c</FilePath>
             </File>
             <File>
               <FileName>osal_task.c</FileName>

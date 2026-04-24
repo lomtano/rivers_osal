@@ -1,191 +1,227 @@
-﻿# queue：事件驱动消息队列
+# queue：环形消息队列与同步重试
+
+> 注：本文文件名沿用旧命名，当前实现语义应以“环形队列 + 同步重试”理解，而不是“等待后自动唤醒”的事件驱动队列。
 
 ## 1. 模块职责
 
-`osal_queue` 提供：
+当前 `queue` 是一个固定项大小的环形消息队列。
+它负责：
 
-- 固定项大小消息队列
-- 非阻塞发送/接收
-- 超时等待
-- 永久等待
-- 事件驱动唤醒等待任务
+- 创建和删除队列
+- 查询当前消息数量
+- 任务态同步发送与接收
+- ISR 态立即尝试发送与接收
 
-对应文件：
+你可以把它直接理解成：
 
-- [osal_queue.h](/abs/path/A:/Embedded_system/cubemx_project/rivers_osal/Middleware/osal/system/Inc/osal_queue.h)
-- [osal_queue.c](/abs/path/A:/Embedded_system/cubemx_project/rivers_osal/Middleware/osal/system/Src/osal_queue.c)
+- 一个使用 `osal_mem` 动态分配底层存储的 ring buffer
+- 外面再包了一层任务态 `timeout_ms` 同步重试接口
 
-## 2. 队列模型
+它不负责任务挂起、等待链表和自动唤醒。
 
-当前队列不是变长消息，而是“固定项大小环形队列”。
+## 2. 队列对象结构
 
-也就是说：
+当前实现保留这些核心字段：
 
-- 每个元素大小在创建时确定
-- 后续每次 `send/recv` 都按固定 `item_size` 拷贝
+```c
+struct osal_queue {
+    uint8_t *storage;
+    uint32_t head;
+    uint32_t tail;
+    uint32_t length;
+    uint32_t item_size;
+    uint32_t count;
+    struct osal_queue *next;
+};
+```
 
-这适合：
-
-- 结构体消息
-- 指针
-- 固定长度数组
-
-不适合：
-
-- 真正变长的消息体
-
-## 3. 核心数据结构
-
-一个队列对象内部通常包含：
+字段含义：
 
 - `storage`
-- `length`
-- `item_size`
+  队列底层数据区
 - `head`
+  读取位置
 - `tail`
+  写入位置
+- `length`
+  队列容量，单位是“项”
+- `item_size`
+  每项固定字节数
 - `count`
-- `owns_storage`
-- `wait_send_list`
-- `wait_recv_list`
+  当前已存项数
+- `next`
+  活动队列链表指针，主要用于句柄校验
 
-可以理解为两部分：
+## 3. 内存来源
 
-1. 环形缓冲区状态
-2. 等待任务链表
+当前队列的控制块和数据区都统一来自 `osal_mem_alloc()`。
+因此公开创建接口只保留：
 
-## 4. 环形缓冲区怎么工作
+- `osal_queue_create(length, item_size)`
 
-发送时：
+不再提供“用户自带静态数据缓冲区”的创建方式。
 
-- 把消息写到 `tail`
-- `tail = (tail + 1) % length`
-- `count++`
+## 4. 对外接口
 
-接收时：
+### 4.1 任务态接口
 
-- 从 `head` 读消息
-- `head = (head + 1) % length`
-- `count--`
+- `osal_queue_create()`
+- `osal_queue_delete()`
+- `osal_queue_get_count()`
+- `osal_queue_send(q, item, timeout_ms)`
+- `osal_queue_recv(q, item, timeout_ms)`
 
-这是典型环形队列。
+### 4.2 ISR 接口
 
-优点是：
+- `osal_queue_send_from_isr(q, item)`
+- `osal_queue_recv_from_isr(q, item)`
 
-- 不需要搬移数据
-- 固定长度项处理简单
-- 裸机上很适合做消息缓冲
+ISR 版本始终是立即尝试，不接受 `timeout_ms`。
 
-## 5. 等待语义
+## 5. 当前 queue 不是“等待后唤醒”模型
 
-当前队列支持三种等待模式：
+这是当前实现最容易被误解的点。
 
-- `0`
-  - 不等
-  - 当前不能发送/接收就立刻返回
-- `N ms`
-  - 最多等待 N 毫秒
-- `OSAL_WAIT_FOREVER`
-  - 一直等
+现在的 queue `不是` 下面这种模型：
 
-这套语义和 FreeRTOS 风格是接近的。
+- 任务调用 `recv()` 后进入 queue 等待队列
+- 另一个任务或 ISR 调用 `send()` 成功后
+- queue 把“等待这个队列的任务”切回 `READY`
+- 调度器随后从任务上次阻塞的位置继续执行
 
-## 6. 阻塞等待时到底发生了什么
+当前实现没有这些东西：
 
-如果任务调用 `recv_timeout(..., OSAL_WAIT_FOREVER)`，且队列为空：
+- 没有 queue wait list
+- 没有 task waiting state
+- 没有 send/recv 后的 ready 唤醒逻辑
+- 没有任务上下文保存/恢复
 
-1. 当前任务不会继续轮询
-2. 当前任务被标记为 `BLOCKED`
-3. 被挂到这个队列的 `wait_recv_list`
-4. 调度器后续普通扫描时会跳过这个任务
+结合当前 `task` 模型，这意味着：
 
-所以这个等待不会阻塞整个系统，只会阻塞当前任务。
+- OSAL 只有 `READY / RUNNING / SUSPENDED`
+- 没有“阻塞在某个 queue 上”的任务状态
+- 所以系统无法实现“恢复后从当时等队列的那一行继续往下跑”
 
-发送等待也是同理，只是挂到 `wait_send_list`。
+## 6. `timeout_ms` 的真实语义
 
-## 7. 为什么说它是事件驱动的
+### 6.1 `timeout_ms = 0U`
 
-关键不在“它能等待”，而在“队列状态变化时会主动唤醒任务”。
+只尝试一次：
 
-例如：
+- 发送时队列满，返回 `OSAL_ERR_RESOURCE`
+- 接收时队列空，返回 `OSAL_ERR_RESOURCE`
 
-- 某任务在等接收
-- 另一个任务成功 `send`
+### 6.2 `timeout_ms = N`
 
-这时队列实现不会只是把消息塞进去结束，而是会继续：
+表示在 `N ms` 时间窗口内反复尝试：
 
-- 从 `wait_recv_list` 中挑一个最合适的等待任务
-- 直接把它置为 `READY`
+- 成功时返回 `OSAL_OK`
+- 到窗口末尾仍失败时返回 `OSAL_ERR_TIMEOUT`
 
-所以这是事件驱动，不是简单的轮询 + yield。
+内部模型可以理解为：
 
-## 8. 唤醒策略是什么
+```c
+start = osal_timer_get_tick();
+do {
+    status = try_send_or_recv();
+    if (status == OSAL_OK) {
+        return OSAL_OK;
+    }
+} while ((osal_timer_get_tick() - start) < timeout_ms);
 
-当前等待唤醒策略是：
+return OSAL_ERR_TIMEOUT;
+```
 
-- 高优先级优先
-- 同优先级保持先入先出
+这仍然发生在当前调用栈里。
+它不是挂起等待，而是同步忙等重试。
 
-这意味着：
+## 7. “事件驱动”现在体现在哪里
 
-- 更关键的任务恢复更快
-- 同级任务恢复顺序可预测
+当前文档里说 queue 带一点“事件驱动”特征，指的不是任务唤醒，而是这件事：
 
-## 9. 为什么 `queue` 比 `event/mutex` 更成熟
+- 在你重试的这段时间里
+- 队列状态可能被异步路径改掉
+- 所以下一次重试可能突然成功
 
-因为队列已经具备：
+这些异步路径通常包括：
 
-- 等待链表
-- 阻塞状态管理
-- 事件触发后的主动唤醒
-- 超时恢复
+- ISR
+- DMA 完成中断
+- 外设硬件事件
 
-而 `event/mutex` 目前更多还是：
+所以现在的“event-driven”更准确地说是：
 
-- 条件不满足就 `yield`
-- 没有真正的等待队列和事件驱动恢复
+- 队列状态可以被异步事件推进
+- 但任务侧等待消息的方式依然是自己下一次再检查
 
-所以当前系统里，`queue` 是最完整的同步原语。
+## 8. 任务态接口和 ISR 接口的区别
 
-## 10. `send_from_isr / recv_from_isr` 的意义
+### 8.1 `osal_queue_send()` / `osal_queue_recv()`
 
-这组接口的目标是：
+- 设计给任务态使用
+- 如果在 ISR 里调用，会返回 `OSAL_ERR_ISR`
+- 支持 `timeout_ms`
+- `timeout_ms > 0` 时本质上是同步忙等重试
 
-- 在 ISR 上下文下也能安全地改变队列状态
-- 并在改变成功后通知等待任务恢复
+### 8.2 `osal_queue_send_from_isr()` / `osal_queue_recv_from_isr()`
 
-它仍然不是抢占式 RTOS 的“立即切换任务”，但已经实现了：
+- 设计给 ISR 里的即时单次操作使用
+- 不接受 `timeout_ms`
+- 只做一次 enqueue/dequeue 尝试
+- 成功返回 `OSAL_OK`
+- 资源不满足返回 `OSAL_ERR_RESOURCE`
 
-- ISR 改变队列状态
-- 对应等待任务变成 READY
+可以把 ISR 版本理解成：
 
-后续主循环再运行时，任务就能尽快继续执行。
+- 只有“立刻试一次”
+- 没有“等一会儿再试”
 
-## 11. 这个设计的收益
+## 9. 适用场景
 
-相对于“任务里循环试探队列是否有消息”，这套设计的收益是：
+### 9.1 适合
 
-- CPU 空转更少
-- 高优先级等待任务恢复更及时
-- 系统负载更稳定
-- 等待逻辑更接近 RTOS 使用体验
+- ISR 向任务侧投递固定大小消息
+- DMA / 外设完成中断向主循环或协作任务侧投递事件
+- 想用固定单元 ring buffer 管理消息，而不想手写 head/tail/count
 
-## 12. 边界和限制
+### 9.2 不适合
 
-当前队列模型的边界：
+如果你的目标是：
 
-- 固定项大小，不支持真变长消息
-- 唤醒是协作式恢复，不是抢占式立即切换
-- 队列对象删除时，等待中的任务要正确处理恢复语义
+- 发完消息自动唤醒等待该队列的任务
+- 消费者任务平时完全不需要自己安排检查时机
+- 任务恢复后直接从“当时阻塞的那一行”继续跑
 
-## 13. 看源码时建议重点关注
+那当前 queue 不适合。
+这种模型需要真正的等待链表、任务等待状态和上下文恢复语义，当前 OSAL 没做这层抽象。
 
-建议重点看：
+## 10. 推荐使用方式
 
-- 队列对象字段定义
-- `enqueue / dequeue`
-- `wait_send_list / wait_recv_list`
-- `prepare_wait`
-- `wake_one_waiter`
-- `send_timeout / recv_timeout`
+如果你接受当前 queue 就是 ring buffer + 同步重试封装，那么推荐这样理解和使用：
 
-这些部分基本覆盖了当前 queue 的全部行为。
+- 把 queue 当成“固定单元、动态分配底层存储的环形缓冲区”
+- `send_from_isr/recv_from_isr` 负责异步即时投递/取走
+- 任务侧根据自己的状态机、节拍或显式调用时机决定何时检查队列
+- 如果资源状态主要靠异步硬件推进，可以使用 `timeout_ms > 0`
+- 如果资源状态主要靠别的协作任务推进，优先使用 `timeout_ms = 0U`
+
+## 11. 关键内部函数
+
+- `osal_queue_storage_size()`
+  检查 `length * item_size` 是否有效并计算总字节数
+- `osal_queue_link()` / `osal_queue_unlink()`
+  维护活动队列链表
+- `osal_queue_enqueue_locked()`
+  在关中断保护下写入一项
+- `osal_queue_dequeue_locked()`
+  在关中断保护下取出一项
+- `osal_queue_try_send()` / `osal_queue_try_recv()`
+  一次立即尝试的任务态封装
+
+## 12. 使用边界
+
+- 当前队列是固定项大小队列，不是可变长消息队列
+- 当前队列不提供任务等待队列
+- 当前队列不提供发送后自动唤醒等待任务
+- 当前队列不提供“恢复到之前阻塞位置继续执行”的语义
+- 如果业务依赖跨多轮协作推进资源状态，应在任务层实现状态机，而不是把 `queue(timeout_ms)` 当成任务调度原语
