@@ -34,78 +34,41 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-typedef struct {
-  uint32_t interval_ms;
-  uint32_t next_run_ms;
-  bool initialized;
-} app_periodic_ctx_t;
-
-typedef struct {
-  app_periodic_ctx_t cadence;
-  void (*toggle)(void);
-} app_led_demo_ctx_t;
-
 #if OSAL_CFG_ENABLE_QUEUE
 typedef struct {
+  /* queue 当前是固定项大小的环形缓冲区，
+   * 所以示例消息也设计成固定长度结构体。 */
   uint32_t sequence;
   uint8_t payload[8];
 } app_queue_message_t;
-
-typedef struct {
-  app_periodic_ctx_t cadence;
-  uint32_t next_sequence;
-} app_queue_producer_ctx_t;
-#endif
-
-#if OSAL_CFG_ENABLE_FLASH && OSAL_PLATFORM_ENABLE_FLASH_DEMO
-typedef struct {
-  periph_flash_t *flash;
-  bool done;
-} app_flash_demo_ctx_t;
 #endif
 
 /* -------------------------------------------------------------------------- */
-/* Shared Helpers                                                             */
+/* Shared Tick Helper                                                         */
 /* -------------------------------------------------------------------------- */
 
+/*
+ * 本文件里的大多数“周期示例”都采用同一种软件运行模式：
+ *
+ * 1. main() 里只负责创建任务、创建软件定时器，或者做一次性初始化。
+ * 2. 主循环持续调用 osal_run()，由协作式调度器反复调用各个任务函数。
+ * 3. 每个任务在自己被调度到时，只做一次“现在是不是到点了”的检查。
+ * 4. 没到点就立刻 return，把执行机会让给其他任务；到点才真正做一次业务。
+ * 5. 做完后把“下一次执行时间”往后推进，再等待下一轮调度。
+ *
+ * 这样写的根本原因不是为了模仿 RTOS delay，而是为了适配当前 OSAL 的真实模型：
+ *
+ * - 没有独立任务栈
+ * - 没有阻塞等待后自动恢复
+ * - 没有“从上次挂起那一行继续往下执行”的上下文语义
+ *
+ * 所以周期任务想非阻塞运行，就必须自己维护 deadline。
+ */
 static bool app_tick_reached(uint32_t now_ms, uint32_t deadline_ms)
 {
+  /* 这里不能直接写 now_ms >= deadline_ms。
+   * 因为 32 位 tick 会自然回绕，差值比较才是跨回绕点后仍然安全的写法。 */
   return ((int32_t)(now_ms - deadline_ms) >= 0);
-}
-
-static bool app_periodic_is_due(app_periodic_ctx_t *ctx, uint32_t now_ms)
-{
-  if ((ctx == NULL) || (ctx->interval_ms == 0U))
-  {
-    return false;
-  }
-
-  if (!ctx->initialized)
-  {
-    ctx->next_run_ms = now_ms;
-    ctx->initialized = true;
-  }
-
-  return app_tick_reached(now_ms, ctx->next_run_ms);
-}
-
-static void app_periodic_mark_run(app_periodic_ctx_t *ctx, uint32_t now_ms)
-{
-  if ((ctx == NULL) || (ctx->interval_ms == 0U))
-  {
-    return;
-  }
-
-  if (!ctx->initialized)
-  {
-    ctx->next_run_ms = now_ms;
-    ctx->initialized = true;
-  }
-
-  do
-  {
-    ctx->next_run_ms += ctx->interval_ms;
-  } while (app_tick_reached(now_ms, ctx->next_run_ms));
 }
 
 /* -------------------------------------------------------------------------- */
@@ -113,6 +76,7 @@ static void app_periodic_mark_run(app_periodic_ctx_t *ctx, uint32_t now_ms)
 /* -------------------------------------------------------------------------- */
 
 #if OSAL_CFG_ENABLE_USART
+/* 绑定到示例串口后，printf/fputc 都会从这里走出去。 */
 static periph_uart_t *g_usart_demo_uart = NULL;
 
 int fputc(int ch, FILE *f)
@@ -124,6 +88,13 @@ void app_usart_demo_init(void)
 {
   static const uint8_t raw_bytes[] = {'a', 'b', 'c', '\r', '\n'};
 
+  /*
+   * 软件运行模式：
+   * 1. 这个示例不创建任务，它只在启动阶段执行一次。
+   * 2. 先通过 platform 层创建一个 UART 设备对象。
+   * 3. 再把 printf/fputc 绑定到这个 UART。
+   * 4. 后续 main.c 里的其他串口日志都会复用这条输出链路。
+   */
   g_usart_demo_uart = osal_platform_uart_create();
   if (g_usart_demo_uart == NULL)
   {
@@ -142,43 +113,65 @@ void app_usart_demo_init(void)
 /* LED Demo                                                                   */
 /* -------------------------------------------------------------------------- */
 
-static app_led_demo_ctx_t g_led_demo_1_ctx = {{500U, 0U, false}, osal_platform_led1_toggle};
-static app_led_demo_ctx_t g_led_demo_2_ctx = {{1000U, 0U, false}, osal_platform_led2_toggle};
-
 static void led_demo_task(void *arg)
 {
-  app_led_demo_ctx_t *ctx = (app_led_demo_ctx_t *)arg;
+  static bool s_led_deadline_initialized = false;
+  static uint32_t s_led1_next_ms = 0U;
+  static uint32_t s_led2_next_ms = 0U;
   uint32_t now_ms;
 
-  if ((ctx == NULL) || (ctx->toggle == NULL))
-  {
-    return;
-  }
+  (void)arg;
+  /*
+   * 软件运行模式：
+   * 1. main() 只创建一个 LED 任务。
+   * 2. 这个任务每轮被调度时都读取一次当前 tick。
+   * 3. LED1 到 500ms 周期点就翻转一次，LED2 到 1000ms 周期点就翻转一次。
+   * 4. 如果本轮两个周期点都没到，就立刻返回，不阻塞 CPU。
+   *
+   * 这里故意不用 delay，也不用 while 死等，
+   * 就是为了展示当前 OSAL 推荐的“协作式非阻塞周期任务”写法。
+   */
 
   now_ms = osal_timer_get_tick();
-  if (!app_periodic_is_due(&ctx->cadence, now_ms))
+  if (!s_led_deadline_initialized)
   {
-    return;
+    /* 第一次运行时把两个 LED 的 deadline 都对齐到当前时刻，
+     * 这样任务创建后第一轮调度就能立即看到一次翻转。 */
+    s_led1_next_ms = now_ms;
+    s_led2_next_ms = now_ms;
+    s_led_deadline_initialized = true;
   }
 
-  ctx->toggle();
-  app_periodic_mark_run(&ctx->cadence, now_ms);
+  if (app_tick_reached(now_ms, s_led1_next_ms))
+  {
+    osal_platform_led1_toggle();
+    do
+    {
+      /* 如果调度晚了不止一个周期，就一直往后追，
+       * 避免后续节拍永久漂移。 */
+      s_led1_next_ms += 500U;
+    } while (app_tick_reached(now_ms, s_led1_next_ms));
+  }
+
+  if (app_tick_reached(now_ms, s_led2_next_ms))
+  {
+    osal_platform_led2_toggle();
+    do
+    {
+      s_led2_next_ms += 1000U;
+    } while (app_tick_reached(now_ms, s_led2_next_ms));
+  }
 }
 
 void app_led_demo_init(void)
 {
-  osal_task_t *led1_task;
-  osal_task_t *led2_task;
+  osal_task_t *task;
 
-  led1_task = osal_task_create(led_demo_task, &g_led_demo_1_ctx, OSAL_TASK_PRIORITY_LOW);
-  led2_task = osal_task_create(led_demo_task, &g_led_demo_2_ctx, OSAL_TASK_PRIORITY_LOW);
-  if (led1_task != NULL)
+  /* 这里只创建一个低优先级任务，让它在内部同时管理两个 LED 的节拍。 */
+  task = osal_task_create(led_demo_task, NULL, OSAL_TASK_PRIORITY_LOW);
+  if (task != NULL)
   {
-    (void)osal_task_start(led1_task);
-  }
-  if (led2_task != NULL)
-  {
-    (void)osal_task_start(led2_task);
+    (void)osal_task_start(task);
   }
 }
 
@@ -187,29 +180,50 @@ void app_led_demo_init(void)
 /* -------------------------------------------------------------------------- */
 
 #if OSAL_CFG_ENABLE_QUEUE
+/* 这个示例里的 queue 只是一个固定项大小的环形缓冲区。 */
 static osal_queue_t *g_queue_demo_queue = NULL;
-static app_queue_producer_ctx_t g_queue_demo_producer_ctx = {{1000U, 0U, false}, 0U};
 
 static void queue_demo_producer_task(void *arg)
 {
-  app_queue_producer_ctx_t *ctx = (app_queue_producer_ctx_t *)arg;
+  static bool s_queue_send_deadline_initialized = false;
+  static uint32_t s_queue_next_send_ms = 0U;
+  static uint32_t s_queue_next_sequence = 0U;
   app_queue_message_t message;
   uint32_t now_ms;
   uint32_t i;
   osal_status_t status;
 
-  if ((ctx == NULL) || (g_queue_demo_queue == NULL))
+  (void)arg;
+  /*
+   * 软件运行模式：
+   * 1. producer 任务每轮都只做一次“是否到发送周期”的判断。
+   * 2. 到点后构造一条固定长度消息，并立即尝试一次非阻塞 send。
+   * 3. send 成功才推进到下一条序号和下一次发送时间。
+   * 4. 如果队列满了，就保持当前 deadline 已到期的状态，等待后续轮次继续尝试。
+   *
+   * 这正好体现当前 queue 的真实语义：
+   * - 它是固定项大小的环形缓冲区
+   * - 它没有等待链表
+   * - 它不会把 producer/consumer 自动挂起再恢复
+   */
+  if (g_queue_demo_queue == NULL)
   {
     return;
   }
 
   now_ms = osal_timer_get_tick();
-  if (!app_periodic_is_due(&ctx->cadence, now_ms))
+  if (!s_queue_send_deadline_initialized)
+  {
+    s_queue_next_send_ms = now_ms;
+    s_queue_send_deadline_initialized = true;
+  }
+
+  if (!app_tick_reached(now_ms, s_queue_next_send_ms))
   {
     return;
   }
 
-  message.sequence = ctx->next_sequence;
+  message.sequence = s_queue_next_sequence;
   for (i = 0U; i < (uint32_t)sizeof(message.payload); ++i)
   {
     message.payload[i] = (uint8_t)(message.sequence + i);
@@ -226,8 +240,11 @@ static void queue_demo_producer_task(void *arg)
            (unsigned long)message.sequence,
            (unsigned int)message.payload[0],
            (unsigned long)osal_queue_get_count(g_queue_demo_queue));
-    ++ctx->next_sequence;
-    app_periodic_mark_run(&ctx->cadence, now_ms);
+    ++s_queue_next_sequence;
+    do
+    {
+      s_queue_next_send_ms += 1000U;
+    } while (app_tick_reached(now_ms, s_queue_next_send_ms));
   }
 }
 
@@ -242,6 +259,15 @@ static void queue_demo_consumer_task(void *arg)
     return;
   }
 
+  /*
+   * 软件运行模式：
+   * 1. consumer 任务没有自己的延时节拍。
+   * 2. 它每轮被调度到时，都只做一次非阻塞 recv。
+   * 3. 有消息就取走并打印，没有消息就立刻返回。
+   *
+   * 这是当前 queue 在协作式模型下最直接的使用方式：
+   * 把“有没有消息”当成一次立即检查，而不是等待被 queue 唤醒。
+   */
   status = osal_queue_recv(g_queue_demo_queue, &message, 0U);
   if (status == OSAL_OK)
   {
@@ -258,6 +284,7 @@ void app_queue_demo_init(void)
   osal_task_t *producer_task;
   osal_task_t *consumer_task;
 
+  /* 创建 8 个消息槽位，每个槽位都能完整放下一个 app_queue_message_t。 */
   g_queue_demo_queue = osal_queue_create(8U, (uint32_t)sizeof(app_queue_message_t));
   if (g_queue_demo_queue == NULL)
   {
@@ -265,7 +292,7 @@ void app_queue_demo_init(void)
     return;
   }
 
-  producer_task = osal_task_create(queue_demo_producer_task, &g_queue_demo_producer_ctx, OSAL_TASK_PRIORITY_HIGH);
+  producer_task = osal_task_create(queue_demo_producer_task, NULL, OSAL_TASK_PRIORITY_HIGH);
   consumer_task = osal_task_create(queue_demo_consumer_task, NULL, OSAL_TASK_PRIORITY_HIGH);
   if (producer_task != NULL)
   {
@@ -283,16 +310,18 @@ void app_queue_demo_init(void)
 /* -------------------------------------------------------------------------- */
 
 #if OSAL_CFG_ENABLE_SW_TIMER
+/* 软件定时器回调最终在任务态执行，不会直接在 SysTick 中断里跑。
+ * 这里示例改成直接走 printf，方便在串口控制台里观察输出。 */
 static void oneshot_timer_callback(void *arg)
 {
   (void)arg;
-  LOGE("oneshot timer: %lu\r\n", (unsigned long)osal_timer_get_tick());
+  printf("oneshot timer: %lu\r\n", (unsigned long)osal_timer_get_tick());
 }
 
 static void periodic_timer_callback(void *arg)
 {
   (void)arg;
-  LOGI("periodic timer: %lu\r\n", (unsigned long)osal_timer_get_tick());
+  printf("periodic timer: %lu\r\n", (unsigned long)osal_timer_get_tick());
 }
 
 void app_timer_demo_init(void)
@@ -300,6 +329,16 @@ void app_timer_demo_init(void)
   int oneshot_timer = osal_timer_create(2000000U, false, oneshot_timer_callback, NULL);
   int periodic_timer = osal_timer_create(1000000U, true, periodic_timer_callback, NULL);
 
+  /*
+   * 软件运行模式：
+   * 1. 这里只创建两个软件定时器：一个 oneshot，一个 periodic。
+   * 2. SysTick 中断本身只负责累计时间，不直接执行回调。
+   * 3. 主循环里的 osal_run() 会调用 osal_timer_poll()。
+   * 4. osal_timer_poll() 发现到期后，才在任务态执行下面的回调函数。
+   *
+   * 所以这个示例展示的是“软件定时器 + 串口输出”路径，
+   * 不是“中断里直接打印”的路径。
+   */
   if (oneshot_timer >= 0)
   {
     (void)osal_timer_start(oneshot_timer);
@@ -315,28 +354,45 @@ void app_timer_demo_init(void)
 /* RTT Demo                                                                   */
 /* -------------------------------------------------------------------------- */
 
-static app_periodic_ctx_t g_rtt_demo_period = {500U, 0U, false};
-
 static void rtt_demo_task(void *arg)
 {
   static bool s_rtt_initialized = false;
+  static bool s_rtt_deadline_initialized = false;
+  static uint32_t s_rtt_next_ms = 0U;
   uint32_t now_ms;
 
   (void)arg;
+  /*
+   * 软件运行模式：
+   * 1. main() 创建一个中优先级 RTT 任务。
+   * 2. 任务第一次运行时只做一次 SEGGER_RTT_Init()。
+   * 3. 后续每 500ms 向 RTT 通道 0 打一条日志。
+   * 4. 输出目的地是 J-Link RTT Viewer / RTT Client，不是串口。
+   */
   if (!s_rtt_initialized)
   {
+    /* RTT 控制块只需要初始化一次，后续每轮任务直接写日志即可。 */
     SEGGER_RTT_Init();
     s_rtt_initialized = true;
   }
 
   now_ms = osal_timer_get_tick();
-  if (!app_periodic_is_due(&g_rtt_demo_period, now_ms))
+  if (!s_rtt_deadline_initialized)
+  {
+    s_rtt_next_ms = now_ms;
+    s_rtt_deadline_initialized = true;
+  }
+
+  if (!app_tick_reached(now_ms, s_rtt_next_ms))
   {
     return;
   }
 
   LOGW("rtt task running: %lu ms\r\n", (unsigned long)now_ms);
-  app_periodic_mark_run(&g_rtt_demo_period, now_ms);
+  do
+  {
+    s_rtt_next_ms += 500U;
+  } while (app_tick_reached(now_ms, s_rtt_next_ms));
 }
 
 void app_rtt_demo_init(void)
@@ -354,12 +410,10 @@ void app_rtt_demo_init(void)
 /* -------------------------------------------------------------------------- */
 
 #if OSAL_CFG_ENABLE_IRQ_PROFILE
-static app_periodic_ctx_t g_dwt_profile_demo_period = {
-  OSAL_CORTEXM_CRITICAL_PROFILE_PRINT_INTERVAL_MS, 0U, false
-};
-
 static void dwt_profile_demo_task(void *arg)
 {
+  static bool s_profile_deadline_initialized = false;
+  static uint32_t s_profile_next_ms = 0U;
   osal_cortexm_profile_stats_t stats;
   uint32_t now_ms;
   uint32_t last_us;
@@ -368,13 +422,29 @@ static void dwt_profile_demo_task(void *arg)
   uint32_t avg_us;
 
   (void)arg;
+  /*
+   * 软件运行模式：
+   * 1. DWT 是否真正启用，已经在 osal_init() 里由 cortexm 模块决定。
+   * 2. system 层内部临界区会在后台持续累积 cycle 样本。
+   * 3. 这个示例任务本身不做测量，只是每隔一段时间把当前统计结果读出来。
+   * 4. 因此它更像“统计结果观察任务”，不是“临界区测量任务”。
+   */
   if (!osal_cortexm_profile_get_stats(&stats))
   {
+    /* 这里返回 false 通常表示：
+     * 1. profiling 编译开关没打开
+     * 2. 当前内核不支持 DWT CYCCNT */
     return;
   }
 
   now_ms = osal_timer_get_tick();
-  if (!app_periodic_is_due(&g_dwt_profile_demo_period, now_ms))
+  if (!s_profile_deadline_initialized)
+  {
+    s_profile_next_ms = now_ms;
+    s_profile_deadline_initialized = true;
+  }
+
+  if (!app_tick_reached(now_ms, s_profile_next_ms))
   {
     return;
   }
@@ -383,6 +453,8 @@ static void dwt_profile_demo_task(void *arg)
   min_us = osal_cortexm_profile_cycles_to_us(stats.min_cycles);
   max_us = osal_cortexm_profile_cycles_to_us(stats.max_cycles);
   avg_us = osal_cortexm_profile_cycles_to_us(stats.avg_cycles);
+  /* 当前统计只覆盖 system 层内部显式包裹的临界区，
+   * 不会把 main.c 里直接调用 osal_irq_* 的时间算进去。 */
   printf("dwt profile: hz=%lu samples=%lu last=%lu cyc/%lu ns/%lu us min=%lu cyc/%lu ns/%lu us max=%lu cyc/%lu ns/%lu us avg=%lu cyc/%lu ns/%lu us\r\n",
          (unsigned long)stats.cpu_clock_hz,
          (unsigned long)stats.sample_count,
@@ -398,7 +470,10 @@ static void dwt_profile_demo_task(void *arg)
          (unsigned long)stats.avg_cycles,
          (unsigned long)stats.avg_ns,
          (unsigned long)avg_us);
-  app_periodic_mark_run(&g_dwt_profile_demo_period, now_ms);
+  do
+  {
+    s_profile_next_ms += OSAL_CORTEXM_CRITICAL_PROFILE_PRINT_INTERVAL_MS;
+  } while (app_tick_reached(now_ms, s_profile_next_ms));
 }
 
 void app_dwt_profile_demo_init(void)
@@ -424,7 +499,7 @@ void app_dwt_profile_demo_init(void)
 
 #if OSAL_CFG_ENABLE_FLASH && OSAL_PLATFORM_ENABLE_FLASH_DEMO
 static periph_flash_t *g_flash_demo_device = NULL;
-static app_flash_demo_ctx_t g_flash_demo_ctx = {0};
+static bool g_flash_demo_done = false;
 
 static void flash_demo_dump_bytes(const char *label, const uint8_t *data, uint32_t length)
 {
@@ -470,6 +545,7 @@ static void flash_demo_report_result(periph_flash_t *flash,
 
   if (!flash_demo_verify(expected, readback, length))
   {
+    /* 写成功但回读校验失败时，把期望值和实际值都打出来，方便直接定位。 */
     printf("%s verify failed @ 0x%08lX\r\n", label, (unsigned long)address);
     flash_demo_dump_bytes("expect:", expected, length);
     flash_demo_dump_bytes("actual:", readback, length);
@@ -523,36 +599,44 @@ static void flash_demo_test_u64(periph_flash_t *flash, uint32_t address)
 
 static void flash_demo_task(void *arg)
 {
-  app_flash_demo_ctx_t *ctx = (app_flash_demo_ctx_t *)arg;
   uint32_t base = OSAL_PLATFORM_FLASH_DEMO_ADDRESS;
 
-  if ((ctx == NULL) || (ctx->flash == NULL) || ctx->done)
+  (void)arg;
+  /*
+   * 软件运行模式：
+   * 1. main() 里创建一个低优先级 flash 任务。
+   * 2. 这个任务只在第一次真正执行时做一次完整测试。
+   * 3. 流程固定为：unlock -> erase -> write -> read -> verify -> lock。
+   * 4. 做完后把 done 置位，后续轮次立刻返回，避免重复擦写。
+   */
+  if ((g_flash_demo_device == NULL) || g_flash_demo_done)
   {
     return;
   }
 
-  ctx->done = true;
+  g_flash_demo_done = true;
 
+  /* 这组写入地址故意错开，便于观察不同宽度写接口是否都按预期工作。 */
   printf("flash demo start @ 0x%08lX\r\n", (unsigned long)base);
-  if (periph_flash_unlock(ctx->flash) != OSAL_OK)
+  if (periph_flash_unlock(g_flash_demo_device) != OSAL_OK)
   {
     printf("flash unlock failed\r\n");
     return;
   }
 
-  if (periph_flash_erase(ctx->flash, base, 0x80U) != OSAL_OK)
+  if (periph_flash_erase(g_flash_demo_device, base, 0x80U) != OSAL_OK)
   {
     printf("flash erase failed\r\n");
-    (void)periph_flash_lock(ctx->flash);
+    (void)periph_flash_lock(g_flash_demo_device);
     return;
   }
 
-  flash_demo_test_u8(ctx->flash, base + 0x00U);
-  flash_demo_test_u16(ctx->flash, base + 0x10U);
-  flash_demo_test_u32(ctx->flash, base + 0x20U);
-  flash_demo_test_u64(ctx->flash, base + 0x30U);
+  flash_demo_test_u8(g_flash_demo_device, base + 0x00U);
+  flash_demo_test_u16(g_flash_demo_device, base + 0x10U);
+  flash_demo_test_u32(g_flash_demo_device, base + 0x20U);
+  flash_demo_test_u64(g_flash_demo_device, base + 0x30U);
 
-  (void)periph_flash_lock(ctx->flash);
+  (void)periph_flash_lock(g_flash_demo_device);
 }
 
 void app_flash_demo_init(void)
@@ -565,10 +649,9 @@ void app_flash_demo_init(void)
     return;
   }
 
-  g_flash_demo_ctx.flash = g_flash_demo_device;
-  g_flash_demo_ctx.done = false;
+  g_flash_demo_done = false;
 
-  task = osal_task_create(flash_demo_task, &g_flash_demo_ctx, OSAL_TASK_PRIORITY_LOW);
+  task = osal_task_create(flash_demo_task, NULL, OSAL_TASK_PRIORITY_LOW);
   if (task != NULL)
   {
     (void)osal_task_start(task);
@@ -638,7 +721,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   /*
-   * OSAL bring-up sequence:
+   * ========================= OSAL Bring-up =========================
    * 1. osal_init() configures Cortex-M kernel peripherals used by OSAL:
    *    SysTick, NVIC Group (4) / SysTick priority, and optional DWT profiling.
    * 2. Each demo init below owns its own local state block and can be enabled independently.
@@ -646,28 +729,33 @@ int main(void)
    */
   osal_init();
 
-  /* Console / basic visibility. */
+  /* ========================= Console Demo =========================
+   * 先把控制台打通，后面其他示例的 printf 才有地方输出。 */
 #if OSAL_CFG_ENABLE_USART
   app_usart_demo_init();
 #endif
 
-  /* Core demos. Enable the ones you want to observe. */
+  /* =========================== Core Demos ===========================
+   * 这里放最基础的 task / queue / timer / RTT 示例。
+   * 哪个示例想观察就打开哪个 init；它们彼此独立，不要求全部同时启用。 */
   app_led_demo_init();
 #if OSAL_CFG_ENABLE_QUEUE
-  /* app_queue_demo_init(); */
+  app_queue_demo_init();
 #endif
 #if OSAL_CFG_ENABLE_SW_TIMER
-  /* app_timer_demo_init(); */
+//  app_timer_demo_init();
 #endif
-  /* app_rtt_demo_init(); */
+  app_rtt_demo_init();
 
 #if OSAL_CFG_ENABLE_IRQ_PROFILE
-  /* DWT profiling only reports system-layer internal critical sections. */
+  /* ======================== DWT Profile Demo ========================
+   * DWT profiling only reports system-layer internal critical sections. */
   app_dwt_profile_demo_init();
 #endif
 
 #if OSAL_CFG_ENABLE_FLASH && OSAL_PLATFORM_ENABLE_FLASH_DEMO
-  /* Give the console a moment before the flash demo starts printing results. */
+  /* ========================= Flash Demo =========================
+   * flash 示例会连续打印擦写和回读结果，先给控制台一点启动时间。 */
   HAL_Delay(1000U);
   app_flash_demo_init();
 #endif
