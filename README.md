@@ -1,139 +1,98 @@
-# rivers_osal
-一个面向 32 位 MCU 裸机项目的轻量 OSAL（Operating System Abstraction Layer）工程，目标是：
-**在不引入 RTOS 的前提下，快速搭建可维护、可移植的工程运行骨架。**
-> 当前定位：**Keil（MDK-ARM）工程优先**，直接编译生成固件（如 `.hex` / `.axf`）。  
-> 说明：仓库当前不以 CMake 为主流程，这是有意设计，便于团队直接沿用 Keil 工程发布固件。
+# OSAL 说明
 
----
+`OSAL` 是一套面向 Cortex-M 裸机工程的纯协作式内核。
+当前版本不再尝试模拟一个精简 RTOS，而是把真实能力收口成一组边界清晰、实现和文档一致的基础模块：
 
-## 设计目标
-`rivers_osal` 并不是完整 RTOS，而是“裸机可控 + 工程化抽象”之间的平衡层：
-- 用统一 API 组织任务、队列、事件、互斥量、定时器与内存。
-- 通过 platform/components 隔离 MCU HAL/SDK 差异。
-- 保持裸机项目对内存占用、执行路径、时延行为的可控性。
+- `task`：协作式任务调度，按优先级决定调度顺序
+- `timer`：统一时基、`us/ms` 忙等延时、软件定时器
+- `queue`：固定单元大小的环形消息队列，任务态提供同步 `timeout_ms` 重试接口
+- `mem`：基于静态内存池的动态分配算法，主要服务于内核对象
+- `irq`：对 CMSIS 中断开关接口的轻量封装
+- `cortexm`：SysTick、NVIC Group (4)、DWT 等 Cortex-M 内核外设配置
 
----
+`event` 和 `mutex` 已从当前公开接口与工程编译单元中移除。
 
-## 系统特性（当前实现）
-### 1) 协作式调度（非抢占）
-- 调度模型是**协作式**，不做抢占式上下文切换。
-- 提供高/中/低三档优先级，采用“检查顺序优先级”。
-- 低优先级存在保底扫描机会，避免长期完全饥饿。
-> 说明：裸机场景下，协作式是有意选择；任务需保持短执行并主动 `sleep/yield`。
-
-### 2) 时间基与软件定时器
-- 系统通过 `osal_tick_handler()` 接入周期时基中断。
-- 支持 us/ms 级时间读取、延时、软件定时器（单次/周期）。
-- 软件定时器由 `osal_run()` 主循环轮询驱动。
-
-### 3) 通信与同步
-
-- 固定项大小队列（支持动态/静态创建）。
-- 事件、互斥量。
-- 提供 ISR 友好接口（例如 queue/event 的部分接口）。
-
-### 4) 内存管理
-
-- `osal_mem`：统一静态堆管理（first-fit + 相邻块合并）。
-- `osal_mempool`：固定块对象池，适合稳定对象分配场景。
-
-### 5) 外设桥接组件
-
-- USART 组件：最小桥接接口为单字节发送。
-- Flash 组件：统一擦写读接口，支持多写宽路径。
-
----
-
-## 仓库结构（当前）
+## 目录结构
 
 ```text
-.
-├── osal/                                   # OSAL 主体（建议复用的中间件目录）
-│   ├── system/                             # 核心：task/queue/event/mutex/timer/mem/irq
-│   ├── platform/                           # 平台适配模板 + STM32F4 示例
-│   ├── components/                         # 可复用组件（USART/Flash/RTT/KEY）
-│   ├── README.md
-│   ├── PORTING_GUIDE.md
-│   ├── USAGE_EXAMPLES.md
-│   └── API_CAPABILITY_TABLE.md
-├── STM32F407ZGT6移植工程/                  # 可直接在 Keil 打开的参考工程
-│   ├── MDK-ARM/rivers_osal.uvprojx
-│   ├── Core/
-│   ├── Drivers/
-│   └── Middleware/
-├── LICENSE
-└── README.md
+osal/
+|-- system/
+|   |-- Inc/
+|   `-- Src/
+|-- platform/
+|   `-- example/
+|       `-- stm32f4/
+|-- components/
+|-- docs/
+`-- CHANGELOG.md
 ```
 
----
-## 快速开始（Keil 工作流）
-### A. 直接运行参考工程
+## 当前核心模型
 
-1. 使用 Keil 打开：
-   - `STM32F407ZGT6移植工程/MDK-ARM/rivers_osal.uvprojx`
-2. 编译后生成 `.axf/.hex` 并下载。
-3. 主循环中保持：
-```c
-while (1) {
-    osal_run();
-}
-```
+- `task` 没有独立任务栈，也不保存/恢复 CPU 上下文。
+- 任务函数本质上是“被调度器重复调用的普通 C 函数”。
+- `osal_task_yield()` 的语义是在当前调用栈里同步触发一次嵌套调度，返回后继续当前执行流。
+- `queue` 本质上是一个使用 `osal_mem` 动态分配底层存储的固定单元环形缓冲区。
+- 当前 `queue` 没有等待链表，也不会在 `send/recv` 后自动把等待任务切回 `READY`。
+- `queue(timeout_ms)` 不是任务挂起语义。
+- `timeout_ms = 0U` 表示立即尝试一次，资源不足返回 `OSAL_ERR_RESOURCE`。
+- `timeout_ms = N` 表示在 `N ms` 窗口内基于系统 tick 同步忙等重试，成功返回 `OSAL_OK`，到期返回 `OSAL_ERR_TIMEOUT`。
+- `osal_timer_delay_us()` / `osal_timer_delay_ms()` 仍然是忙等延时，会占用 CPU。
+- 软件定时器由 `osal_timer_poll()` 在主循环中驱动。
 
-### B. 集成到你自己的裸机工程
-1. 按 `osal/PORTING_GUIDE.md` 复制目录并加入 include/src。
-2. 完成平台层桥接（tick source / irq / uart / flash）。
-3. 在系统时基中断中调用（Cube/HAL 工程示例）：
+## 模块边界
 
-```c
-void SysTick_Handler(void)
-{
-    HAL_IncTick();   // 或你的 SDK tick handler
-    osal_tick_handler();
-}
-```
+- `system` 负责 OSAL 内核本身，不依赖具体板级驱动逻辑。
+- `system/cortexm` 负责 OSAL 内核真正依赖的 SysTick、NVIC、DWT、CMSIS 宏映射。
+- `platform/example/stm32f4` 负责当前 STM32F407 示例工程的 LED、USART、Flash 等桥接。
+- `components` 放在 OSAL 之上的外围组件，目前包含 `USART`、`Flash`、`RTT`、`KEY`。
 
-4. 在 `main()` 完成初始化：
+## 统一配置入口
 
-```c
-int main(void)
-{
-    board_init();
-    osal_init();
+`system/Inc/osal_config.h` 是统一配置头，当前集中承载这些宏：
 
-    app_create_tasks();
+- `OSAL_CFG_ENABLE_DEBUG`
+- `OSAL_CFG_ENABLE_QUEUE`
+- `OSAL_CFG_ENABLE_IRQ_PROFILE`
+- `OSAL_CFG_ENABLE_SW_TIMER`
+- `OSAL_CFG_ENABLE_USART`
+- `OSAL_CFG_ENABLE_FLASH`
+- `OSAL_CFG_INCLUDE_PLATFORM_HEADER`
+- `OSAL_PLATFORM_HEADER_FILE`
 
-    while (1) {
-        osal_run();
-    }
-}
-```
+应用层通常只需要包含 `osal.h`，它会先包含 `osal_config.h`，再聚合各模块头文件。
 
----
+## 最小接入步骤
 
-## 推荐适用场景
-- 从传统 super-loop 向“有任务组织的裸机架构”演进。
-- 需要跨芯片迁移，但暂不引入 RTOS。
-- 希望把 HAL 差异收敛到平台桥接层，而不是散落在业务代码。
+1. 把 `osal/system/Inc`、`osal/system/Src` 和你需要的 `platform/components` 文件加入工程。
+2. 根据目标板修改 `osal_config.h` 和 `osal_cortexm.h` 中的相关配置。
+3. 应用层包含 `osal.h`。
+4. 硬件初始化完成后调用 `osal_init()`。
+5. 主循环中持续调用 `osal_run()`。
+6. 在 `SysTick_Handler()` 中调用 `osal_tick_handler()`。
 
----
+## 使用边界
 
-## 文档索引
-- 从传统 super-loop 向“有任务组织的裸机架构”演进。
-- 需要跨芯片迁移，但暂不引入 RTOS。
-- 希望把 HAL 差异收敛到平台桥接层，而不是散落在业务代码。
+- 这套调度器是协作式，不是抢占式。
+- 任务函数应保持短小，做完一小段工作就返回。
+- 如果业务需要“跨多轮逐步推进”，应在任务层自己维护状态机。
+- `queue(timeout_ms > 0)` 只适合资源状态可能被 ISR、DMA 或其他异步硬件路径改变的场景。
+- 如果资源状态只能靠别的协作任务推进，任务里应优先使用 `timeout_ms = 0U`，由应用自己决定何时重试。
+- 如果你需要“发送后唤醒等待该队列的任务”，当前 queue 不提供这层等待/恢复语义。
 
----
+## 推荐阅读顺序
 
-## 文档索引
-- OSAL 总览：`osal/README.md`
-- 移植指南：`osal/PORTING_GUIDE.md`
-- 使用示例：`osal/USAGE_EXAMPLES.md`
-- API 能力矩阵：`osal/API_CAPABILITY_TABLE.md`
-- 更新日志：`osal/CHANGELOG.md`
+1. `docs/01-总览与移植边界.md`
+2. `docs/02-task-任务调度与延时.md`
+3. `docs/03-timer-时基与软件定时器.md`
+4. `docs/04-queue-事件驱动消息队列.md`
+   当前内容是“环形队列 + 同步重试”语义，文件名为历史保留。
+5. `docs/05-mem-统一堆与内存池.md`
+6. `docs/06-irq-event-mutex-platform.md`
+   当前内容是 `irq / cortexm / platform-example` 边界，文件名为历史保留。
+7. `docs/07-components-外围组件与示例.md`
 
----
+## 示例入口
 
-## License
-
-[MIT](./LICENSE)
-
+- 当前工程主示例：`Core/Src/main.c`
+- 可复制示例集合：`platform/example/stm32f4/osal_integration_stm32f4.c`
