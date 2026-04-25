@@ -18,6 +18,8 @@ typedef struct osal_task osal_task_t;
  * 3. delete 成功后句柄立即失效，不能再继续 start/stop/delete。
  * 4. 当前 task 模块不提供任务阻塞/恢复抽象，只负责协作式调度。
  * 5. 运行中的任务不能在当前执行轮次里直接 delete，应等它 return 后再删除。
+ * 6. 调度器正在扫描任务链表时不允许 delete 任意任务；需要删除时应先 stop，
+ *    再在非调度回调阶段统一回收。
  */
 
 typedef enum {
@@ -48,6 +50,7 @@ osal_task_t *osal_task_create(osal_task_fn_t fn, void *arg, osal_task_priority_t
  * @param task 任务句柄。
  * @note delete(NULL) 是安全空操作。
  * @note 当前正在执行的任务不能在本轮调用栈里直接删除，必须等它返回。
+ * @note 调度器正在执行任务回调时不允许删除任意任务，避免链表遍历指针悬空。
  */
 void osal_task_delete(osal_task_t *task);
 
@@ -74,11 +77,13 @@ osal_status_t osal_task_stop(osal_task_t *task);
 void osal_task_yield(void);
 
 /*
- * run 的语义：
- * 1. 主循环持续调用它，执行一轮协作式调度。
- * 2. 它不会切换独立任务栈，也不会保存/恢复任务上下文。
+ * start_system 的语义：
+ * 1. 由应用在完成硬件初始化、osal_init() 和任务创建后调用。
+ * 2. 调用后由 OSAL 接管顶层循环，持续推进软件定时器和协作式任务调度。
+ * 3. 每轮调度结束后会调用 OSAL_IDLE_HOOK()，默认空操作，可用于接入低功耗。
+ * 4. 正常情况下不会再返回到 main()，因此 main() 里不需要再写自己的顶层调度 while(1)。
  */
-void osal_run(void);
+void osal_start_system(void);
 
 #ifdef __cplusplus
 }

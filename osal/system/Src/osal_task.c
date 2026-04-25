@@ -20,7 +20,8 @@ static osal_task_t *s_current_task = NULL;
 static uint8_t s_scheduler_depth = 0U;
 static uint32_t s_low_scan_count = 0U;
 
-static void osal_run_internal(osal_task_t *skip_task);
+static void osal_scheduler_dispatch(osal_task_t *skip_task);
+static void osal_scheduler_step(void);
 
 /* 函数说明：输出任务模块调试诊断信息。 */
 static void osal_task_report(const char *message) {
@@ -109,7 +110,7 @@ static bool osal_task_list_remove(osal_task_t **head, osal_task_t *task) {
  * 这里先缓存 next，再调用任务函数。
  * 原因是任务函数内部可能 stop 自己，甚至触发嵌套调度；提前取 next 才能避免遍历链表时丢链。
  */
-static bool osal_run_priority_list(osal_task_t *head, osal_task_t *skip_task) {
+static bool osal_scheduler_execute_priority_list(osal_task_t *head, osal_task_t *skip_task) {
     osal_task_t *outer_task = s_current_task;
     osal_task_t *task = head;
     bool ran = false;
@@ -149,15 +150,15 @@ static bool osal_run_priority_list(osal_task_t *head, osal_task_t *skip_task) {
  * 调度策略是：先跑 high，再跑 medium；只有当高/中优先级本轮都没跑到，或者达到低优先级扫描周期时，
  * 才扫描 low 队列，避免低优先级完全饿死。
  */
-static void osal_run_internal(osal_task_t *skip_task) {
+static void osal_scheduler_dispatch(osal_task_t *skip_task) {
     bool ran_high;
     bool ran_medium;
     bool should_scan_low;
 
     ++s_scheduler_depth;
 
-    ran_high = osal_run_priority_list(s_task_lists[OSAL_TASK_PRIORITY_HIGH], skip_task);
-    ran_medium = osal_run_priority_list(s_task_lists[OSAL_TASK_PRIORITY_MEDIUM], skip_task);
+    ran_high = osal_scheduler_execute_priority_list(s_task_lists[OSAL_TASK_PRIORITY_HIGH], skip_task);
+    ran_medium = osal_scheduler_execute_priority_list(s_task_lists[OSAL_TASK_PRIORITY_MEDIUM], skip_task);
 
     should_scan_low = (!ran_high && !ran_medium);
     if (!should_scan_low) {
@@ -170,7 +171,7 @@ static void osal_run_internal(osal_task_t *skip_task) {
 
     if (should_scan_low) {
         s_low_scan_count = 0U;
-        (void)osal_run_priority_list(s_task_lists[OSAL_TASK_PRIORITY_LOW], skip_task);
+        (void)osal_scheduler_execute_priority_list(s_task_lists[OSAL_TASK_PRIORITY_LOW], skip_task);
     }
 
     --s_scheduler_depth;
@@ -204,7 +205,11 @@ osal_task_t *osal_task_create(osal_task_fn_t fn, void *arg, osal_task_priority_t
     return task;
 }
 
-/* 函数说明：删除一个已经不再参与执行的任务控制块。 */
+/*
+ * 函数说明：删除一个已经不再参与执行的任务控制块。
+ * delete 会真正释放 TCB，所以不能在调度器扫描链表期间调用，
+ * 否则调度器提前缓存的 next 指针可能指向已经释放的对象。
+ */
 void osal_task_delete(osal_task_t *task) {
     osal_task_priority_t priority;
 
@@ -213,6 +218,10 @@ void osal_task_delete(osal_task_t *task) {
     }
     if (osal_irq_is_in_isr()) {
         osal_task_report("delete is not allowed in ISR context");
+        return;
+    }
+    if (s_scheduler_depth != 0U) {
+        osal_task_report("delete is not allowed while scheduler is dispatching");
         return;
     }
     if (!osal_task_contains(task)) {
@@ -283,13 +292,13 @@ void osal_task_yield(void) {
         return;
     }
 
-    osal_run_internal(s_current_task);
+    osal_scheduler_dispatch(s_current_task);
 }
 
 /* 函数说明：执行一轮顶层协作式调度。 */
-void osal_run(void) {
+static void osal_scheduler_step(void) {
     if (osal_irq_is_in_isr()) {
-        osal_task_report("osal_run is not allowed in ISR context");
+        osal_task_report("scheduler step is not allowed in ISR context");
         return;
     }
 
@@ -299,5 +308,18 @@ void osal_run(void) {
         return;
     }
 
-    osal_run_internal(NULL);
+    osal_scheduler_dispatch(NULL);
+}
+
+/* 函数说明：启动 OSAL 顶层调度循环，正常情况下不会再返回调用方。 */
+void osal_start_system(void) {
+    if (osal_irq_is_in_isr()) {
+        osal_task_report("start_system is not allowed in ISR context");
+        return;
+    }
+
+    for (;;) {
+        osal_scheduler_step();
+        OSAL_IDLE_HOOK();
+    }
 }

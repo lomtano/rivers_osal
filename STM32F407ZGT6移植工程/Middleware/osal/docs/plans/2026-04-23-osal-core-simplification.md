@@ -92,7 +92,7 @@
 - Modify: `A:\Embedded_system\cubemx_project\rivers_osal\Middleware\osal\CHANGELOG.md`
 
 - [x] 文档全部以修改后的 OSAL 为准，不保留旧语义说明
-- [x] `task` 文档写清结构体、状态切换、链表操作、`osal_run_priority_list()`、`yield/run`
+- [x] `task` 文档写清结构体、状态切换、链表操作、调度入口、`yield/start_system`
 - [x] `queue` 文档改成同步超时重试模型，写清忙等边界
 - [x] `timer` 文档补充 tick 防溢出机制实现方法与原理
 - [x] `06` 文档改成仅覆盖 `irq/platform`

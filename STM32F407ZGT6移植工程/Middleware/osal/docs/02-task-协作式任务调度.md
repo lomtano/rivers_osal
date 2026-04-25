@@ -12,6 +12,32 @@
 
 它不再负责任何“等待后恢复”的抽象。
 
+### 1.1 对外接口总览
+
+`task` 对外接口包括：
+
+- `osal_task_create()`
+- `osal_task_delete()`
+- `osal_task_start()`
+- `osal_task_stop()`
+- `osal_task_yield()`
+- `osal_start_system()`
+
+这些接口的分工是：
+
+- `create/delete` 负责任务对象生命周期。
+- `start/stop` 负责任务是否参与调度。
+- `yield` 负责当前任务主动让出一次执行机会。
+- `osal_start_system()` 是系统启动后不返回的顶层调度入口。
+
+### 1.2 在 OSAL 中的作用
+
+`task` 是 OSAL 的顶层协作式执行框架。`osal_start_system()` 会持续推进软件定时器和任务调度，因此应用层不需要再在 `main()` 里写自己的调度 `while(1)`。
+
+### 1.3 软件思路
+
+当前 `task` 没有独立任务栈，也不保存 CPU 上下文。任务函数本质上是被调度器反复调用的普通 C 函数；如果任务需要跨多轮执行，应该在自己的私有上下文里维护状态机。
+
 ## 2. 任务对象结构
 
 当前实现中的任务控制块只保留这些字段：
@@ -84,7 +110,7 @@ static osal_task_t *s_task_lists[OSAL_TASK_PRIORITY_COUNT];
 
 ## 5. 调度入口与内部流程
 
-### 5.1 `osal_run_priority_list()`
+### 5.1 `osal_scheduler_execute_priority_list()`
 
 这个函数负责按链表顺序扫描某个优先级列表：
 
@@ -93,7 +119,7 @@ static osal_task_t *s_task_lists[OSAL_TASK_PRIORITY_COUNT];
 3. 调用任务函数前切到 `RUNNING`
 4. 任务返回后，若任务仍在调度器内且状态仍为 `RUNNING`，再切回 `READY`
 
-### 5.2 `osal_run_internal()`
+### 5.2 `osal_scheduler_dispatch()`
 
 这是调度器的核心一轮逻辑：
 
@@ -107,13 +133,19 @@ static osal_task_t *s_task_lists[OSAL_TASK_PRIORITY_COUNT];
 
 这样做的目的，是在保证高/中优先级响应性的同时，给低优先级任务保留最小公平性。
 
-### 5.3 `osal_run()`
+### 5.3 `osal_start_system()`
 
-`osal_run()` 是主循环层入口：
+`osal_start_system()` 是当前公开的系统启动入口：
 
-- 先调用 `osal_timer_poll()`
-- 检查当前是否允许进入新一轮调度
-- 再调用 `osal_run_internal(NULL)`
+- 由应用在 `osal_init()`、任务创建和组件初始化完成后调用
+- 调用后进入 OSAL 内部永久循环，正常情况下不会再返回 `main()`
+- 每一轮循环先调用 `osal_timer_poll()`
+- 再调用内部调度函数执行一轮协作式任务调度
+- 每轮调度结束后调用 `OSAL_IDLE_HOOK()`
+
+应用层不需要、也不应该再在 `main()` 里手写顶层调度 `while(1)`。`osal_start_system()` 就是唯一公开的系统启动调度入口。
+
+`OSAL_IDLE_HOOK()` 默认是空操作。如果应用要做低功耗，可以在这个宏里接入 `__WFI()` 或板级 idle 处理；但要注意它是在每轮协作式调度之后执行，并不代表系统里一定完全没有后续软件工作。如果某些任务依赖持续高速轮询，就不要无条件在 idle hook 里睡眠。
 
 ## 6. `yield` 的真实语义
 
@@ -149,12 +181,17 @@ static osal_task_t *s_task_lists[OSAL_TASK_PRIORITY_COUNT];
 
 - 只允许在任务态调用
 - 只允许删除当前不在执行中的任务
+- 调度器正在扫描任务链表时不允许删除任意任务
 - 成功后从优先级链表摘除并释放控制块
 
 这里有一个必须明确的边界：
 
 - 运行中的任务不能在当前执行轮次里直接 `delete`
 - 因为当前 OSAL 没有独立任务栈，删除正在执行的任务会破坏当前调用链
+- 即使删除的是“别的任务”，也不能在任务回调里直接 `delete`
+- 原因是调度器执行链表时会提前缓存 `next` 指针；如果回调里释放了链表上的 TCB，缓存指针可能变成悬空指针
+
+推荐做法是：任务回调里只设置“需要删除”的标志，或者先 `stop` 目标任务；真正 `delete` 放到 `osal_start_system()` 启动前的初始化/清理阶段，或者放到 `OSAL_IDLE_HOOK()` 这类不会运行在任务回调栈里的应用管理入口。
 
 ## 8. 延时与周期任务应该怎么写
 

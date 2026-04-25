@@ -9,6 +9,22 @@
 
 这篇文档不只解释“做了什么”，还把当前代码真正用到的寄存器、地址、位定义和配置顺序写出来，方便移植和排错。
 
+## 职责与接口总览
+
+`cortexm` 在 OSAL 中的作用是：把 OSAL 内核真正依赖的 Cortex-M 内核外设配置集中到一个地方。它服务于 `timer`、`irq` 和 profiling，不服务于 LED、USART、Flash 这类板级外设。
+
+对外接口主要包括：
+
+- `osal_cortexm_init()`：平台初始化钩子，当前默认是空实现。
+- `osal_cortexm_setup_interrupt_controller()`：配置 NVIC 优先级分组和 SysTick 优先级。
+- `osal_cortexm_setup_system_tick()`：配置并启动 SysTick。
+- `osal_cortexm_get_tick_source()`：把 SysTick 读数能力提供给 `timer` 层。
+- `osal_cortexm_profile_init()`：初始化 DWT CYCCNT profiling 后端。
+- `osal_cortexm_profile_get_stats()`：读取临界区 profiling 统计。
+- `osal_cortexm_profile_cycles_to_ns()` / `osal_cortexm_profile_cycles_to_us()`：把 cycle 换算成时间。
+
+软件思路是：`timer` 层只关心“时基怎么读”，`irq` 层只关心“中断怎么关/恢复”，真正写 Cortex-M 寄存器的代码统一留在 `cortexm` 层。
+
 ## 1. 实际初始化顺序
 
 当前 `osal_init()` 的真实顺序在 `system/Src/osal_timer.c` 里是：

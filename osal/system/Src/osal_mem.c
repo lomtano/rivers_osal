@@ -8,6 +8,11 @@
 #define OSAL_BLOCK_USED_FLAG     (0x80000000UL)
 /* 低 31 位保存块大小。 */
 #define OSAL_BLOCK_SIZE_MASK     (0x7FFFFFFFUL)
+/*
+ * 拆分空闲块时保留下来的尾块至少要能放下“块头 + 一个最小净荷”。
+ * 如果尾块太小，宁可整块分配出去，也不要制造几乎不可再利用的碎片。
+ */
+#define OSAL_HEAP_MIN_BLOCK_SIZE ((uint32_t)(sizeof(osal_heap_block_t) * 2U))
 
 /*
  * 统一堆块头：
@@ -40,6 +45,11 @@ static uint8_t *s_heap_buffer = NULL;
 static uint32_t s_heap_size = 0U;
 static osal_heap_block_t *s_free_list = NULL;
 static bool s_heap_ready = false;
+static uint32_t s_free_bytes = 0U;
+static uint32_t s_min_ever_free_size = 0U;
+static uint32_t s_alloc_count = 0U;
+static uint32_t s_free_count = 0U;
+static uint32_t s_alloc_fail_count = 0U;
 /* 所有活动 mempool 的链表，仅用于句柄管理和调试校验。 */
 static osal_mempool_t *s_mempool_list = NULL;
 
@@ -56,11 +66,19 @@ static void osal_mem_report(const char *message) {
     OSAL_DEBUG_REPORT("mem", message);
 }
 
-/* 函数说明：将字节数向上对齐到系统对齐粒度。 */
-static uint32_t osal_mem_align_up(uint32_t value) {
-    /* 例如按 4 字节对齐时，mask=3，把低 2 位抹零即可得到向上对齐结果。 */
+/* 函数说明：带溢出检查地向上对齐字节数。 */
+static bool osal_mem_align_up_checked(uint32_t value, uint32_t *aligned_value) {
     uint32_t mask = OSAL_MEM_ALIGN - 1U;
-    return (value + mask) & ~mask;
+
+    if (aligned_value == NULL) {
+        return false;
+    }
+    if (value > (UINT32_MAX - mask)) {
+        return false;
+    }
+
+    *aligned_value = (value + mask) & ~mask;
+    return true;
 }
 
 /* 函数说明：将字节数向下对齐到系统对齐粒度。 */
@@ -68,6 +86,37 @@ static uint32_t osal_mem_align_down(uint32_t value) {
     /* 向下对齐直接把低位对齐余数清零。 */
     uint32_t mask = OSAL_MEM_ALIGN - 1U;
     return value & ~mask;
+}
+
+/* 函数说明：把堆起始地址向上对齐到指针对齐边界。 */
+static uint8_t *osal_mem_align_ptr_up(uint8_t *ptr) {
+    uintptr_t value = (uintptr_t)ptr;
+    uintptr_t mask = (uintptr_t)(OSAL_MEM_ALIGN - 1U);
+    return (uint8_t *)((value + mask) & ~mask);
+}
+
+/* 函数说明：根据用户净荷大小计算实际堆块大小，并检查加法和对齐溢出。 */
+static bool osal_mem_make_request_size(uint32_t size, uint32_t *request_size) {
+    uint32_t raw_size;
+    uint32_t aligned_size;
+
+    if ((size == 0U) || (request_size == NULL)) {
+        return false;
+    }
+    if (size > (OSAL_BLOCK_SIZE_MASK - (uint32_t)sizeof(osal_heap_block_t))) {
+        return false;
+    }
+
+    raw_size = size + (uint32_t)sizeof(osal_heap_block_t);
+    if (!osal_mem_align_up_checked(raw_size, &aligned_size)) {
+        return false;
+    }
+    if ((aligned_size < raw_size) || (aligned_size > OSAL_BLOCK_SIZE_MASK)) {
+        return false;
+    }
+
+    *request_size = aligned_size;
+    return true;
 }
 
 /* 函数说明：读取堆块当前记录的有效大小。 */
@@ -86,6 +135,52 @@ static bool osal_heap_block_used(const osal_heap_block_t *block) {
 static void osal_heap_set_block(osal_heap_block_t *block, uint32_t size, bool used) {
     /* 这里统一负责把“大小”和“占用标志”重新打包回同一个 32 位字段。 */
     block->size_and_flags = (size & OSAL_BLOCK_SIZE_MASK) | (used ? OSAL_BLOCK_USED_FLAG : 0U);
+}
+
+/* 函数说明：把空闲块总大小换算成用户真正能申请到的最大净荷大小。 */
+static uint32_t osal_heap_payload_capacity(uint32_t block_size) {
+    if (block_size <= (uint32_t)sizeof(osal_heap_block_t)) {
+        return 0U;
+    }
+    return block_size - (uint32_t)sizeof(osal_heap_block_t);
+}
+
+/* 函数说明：记录一次成功分配后的统计变化。 */
+static void osal_mem_note_alloc(uint32_t allocated_block_size) {
+    if (s_free_bytes >= allocated_block_size) {
+        s_free_bytes -= allocated_block_size;
+    } else {
+        s_free_bytes = 0U;
+    }
+
+    if (s_free_bytes < s_min_ever_free_size) {
+        s_min_ever_free_size = s_free_bytes;
+    }
+    ++s_alloc_count;
+}
+
+/* 函数说明：记录一次释放后的统计变化。 */
+static void osal_mem_note_free(uint32_t freed_block_size) {
+    if (freed_block_size > s_heap_size) {
+        s_free_bytes = s_heap_size;
+    } else if (s_free_bytes <= (s_heap_size - freed_block_size)) {
+        s_free_bytes += freed_block_size;
+    } else {
+        s_free_bytes = s_heap_size;
+    }
+    ++s_free_count;
+}
+
+/* 函数说明：记录一次统一堆分配失败。 */
+static void osal_mem_note_alloc_fail(void) {
+    ++s_alloc_fail_count;
+}
+
+/* 函数说明：在临界区内记录一次分配失败，供提前返回路径使用。 */
+static void osal_mem_note_alloc_fail_locked(void) {
+    uint32_t irq_state = osal_internal_critical_enter();
+    osal_mem_note_alloc_fail();
+    osal_internal_critical_exit(irq_state);
 }
 
 /* 函数说明：获取固定块内下一指针字段的地址。 */
@@ -117,16 +212,47 @@ static bool osal_mem_pointer_in_heap(const void *ptr) {
     return ((byte_ptr >= s_heap_buffer) && (byte_ptr < (s_heap_buffer + s_heap_size)));
 }
 
+/* 函数说明：检查一个候选堆块头是否具有基本合法的大小和边界。 */
+static bool osal_heap_block_header_is_valid(const osal_heap_block_t *block) {
+    const uint8_t *block_ptr = (const uint8_t *)block;
+    const uint8_t *heap_end;
+    uint32_t block_size;
+    uint32_t remaining;
+
+    if (!osal_mem_pointer_in_heap(block)) {
+        return false;
+    }
+    if ((((uintptr_t)block_ptr) & (uintptr_t)(OSAL_MEM_ALIGN - 1U)) != 0U) {
+        return false;
+    }
+
+    heap_end = s_heap_buffer + s_heap_size;
+    remaining = (uint32_t)(heap_end - block_ptr);
+    block_size = osal_heap_block_size(block);
+    if ((block_size < (uint32_t)sizeof(osal_heap_block_t)) || (block_size > remaining)) {
+        return false;
+    }
+    if (osal_mem_align_down(block_size) != block_size) {
+        return false;
+    }
+
+    return true;
+}
+
 /* 函数说明：将内存池对象挂入活动链表。 */
 static void osal_mempool_link(osal_mempool_t *mp) {
+    uint32_t irq_state;
+
     /* 内存池也维护一张活动链表，方便调试模式下检查句柄是否合法。 */
+    irq_state = osal_internal_critical_enter();
     mp->next = s_mempool_list;
     s_mempool_list = mp;
+    osal_internal_critical_exit(irq_state);
 }
 
 /* 函数说明：检查内存池句柄是否仍在活动链表中。 */
 #if OSAL_CFG_ENABLE_DEBUG
-static bool osal_mempool_contains(osal_mempool_t *mp) {
+static bool osal_mempool_contains_unlocked(osal_mempool_t *mp) {
     osal_mempool_t *current = s_mempool_list;
 
     while (current != NULL) {
@@ -134,6 +260,25 @@ static bool osal_mempool_contains(osal_mempool_t *mp) {
             return true;
         }
         current = current->next;
+    }
+
+    return false;
+}
+
+/* 函数说明：在临界区内检查固定块是否已经位于 free_list 中。 */
+static bool osal_mempool_free_list_contains_unlocked(const osal_mempool_t *mp, const void *ptr) {
+    void *current;
+
+    if ((mp == NULL) || (ptr == NULL)) {
+        return false;
+    }
+
+    current = mp->free_list;
+    while (current != NULL) {
+        if (current == ptr) {
+            return true;
+        }
+        current = *osal_block_next_ptr(current);
     }
 
     return false;
@@ -142,9 +287,12 @@ static bool osal_mempool_contains(osal_mempool_t *mp) {
 
 /* 函数说明：将内存池对象从活动链表中摘除。 */
 static bool osal_mempool_unlink(osal_mempool_t *mp) {
+    uint32_t irq_state;
     osal_mempool_t *prev = NULL;
     osal_mempool_t *current = s_mempool_list;
+    bool removed = false;
 
+    irq_state = osal_internal_critical_enter();
     while (current != NULL) {
         if (current == mp) {
             if (prev == NULL) {
@@ -153,13 +301,15 @@ static bool osal_mempool_unlink(osal_mempool_t *mp) {
                 prev->next = current->next;
             }
             current->next = NULL;
-            return true;
+            removed = true;
+            break;
         }
         prev = current;
         current = current->next;
     }
+    osal_internal_critical_exit(irq_state);
 
-    return false;
+    return removed;
 }
 
 /* 函数说明：校验内存池句柄是否有效。 */
@@ -168,10 +318,16 @@ static bool osal_mempool_validate_handle(const osal_mempool_t *mp) {
         return false;
     }
 #if OSAL_CFG_ENABLE_DEBUG
-    if (!osal_mempool_contains((osal_mempool_t *)mp)) {
-        /* release 模式下不做这个遍历，debug 模式下才启用更严格的句柄校验。 */
-        osal_mem_report("mempool API called with inactive mempool handle");
-        return false;
+    {
+        uint32_t irq_state = osal_internal_critical_enter();
+        bool valid = osal_mempool_contains_unlocked((osal_mempool_t *)mp);
+        osal_internal_critical_exit(irq_state);
+
+        if (!valid) {
+            /* release 模式下不做这个遍历，debug 模式下才启用更严格的句柄校验。 */
+            osal_mem_report("mempool API called with inactive mempool handle");
+            return false;
+        }
     }
 #endif
     return true;
@@ -180,9 +336,22 @@ static bool osal_mempool_validate_handle(const osal_mempool_t *mp) {
 /* 函数说明：初始化统一 OSAL 堆区域。 */
 void osal_mem_init(void *heap_buffer, uint32_t heap_size) {
     uint8_t *buffer;
+    uint8_t *aligned_buffer;
     uint32_t size;
+    uint32_t align_offset;
     uint32_t aligned_size;
     osal_heap_block_t *initial;
+
+    if (osal_irq_is_in_isr()) {
+        osal_mem_report("mem_init is not allowed in ISR context");
+        return;
+    }
+
+    /*
+     * 重新初始化统一堆意味着旧堆上的控制块都已经失效。
+     * mempool 控制块也来自统一堆，所以这里同步清掉活动 mempool 链表。
+     */
+    s_mempool_list = NULL;
 
     if (heap_buffer != NULL && heap_size != 0U) {
         /* 用户显式给了外部堆，就优先用用户提供的这块缓冲区。 */
@@ -194,17 +363,31 @@ void osal_mem_init(void *heap_buffer, uint32_t heap_size) {
         size = (uint32_t)sizeof(s_default_heap.bytes);
     }
 
-    aligned_size = osal_mem_align_down(size);
+    aligned_buffer = osal_mem_align_ptr_up(buffer);
+    align_offset = (uint32_t)(aligned_buffer - buffer);
+    if (size <= align_offset) {
+        s_heap_buffer = NULL;
+        s_heap_size = 0U;
+        s_free_list = NULL;
+        s_heap_ready = false;
+        s_free_bytes = 0U;
+        s_min_ever_free_size = 0U;
+        return;
+    }
+
+    aligned_size = osal_mem_align_down(size - align_offset);
     if (aligned_size <= sizeof(osal_heap_block_t)) {
         /* 如果整块堆连一个块头都放不下，那这块堆就没有实际使用价值。 */
         s_heap_buffer = NULL;
         s_heap_size = 0U;
         s_free_list = NULL;
         s_heap_ready = false;
+        s_free_bytes = 0U;
+        s_min_ever_free_size = 0U;
         return;
     }
 
-    s_heap_buffer = buffer;
+    s_heap_buffer = aligned_buffer;
     s_heap_size = aligned_size;
     /* 整块堆初始化时先视为“一个完整的大空闲块”。 */
     s_free_list = (osal_heap_block_t *)s_heap_buffer;
@@ -212,6 +395,11 @@ void osal_mem_init(void *heap_buffer, uint32_t heap_size) {
     osal_heap_set_block(initial, s_heap_size, false);
     initial->next_free = NULL;
     s_heap_ready = true;
+    s_free_bytes = s_heap_size;
+    s_min_ever_free_size = s_heap_size;
+    s_alloc_count = 0U;
+    s_free_count = 0U;
+    s_alloc_fail_count = 0U;
 }
 
 /* 函数说明：从统一 OSAL 堆中分配一段内存。 */
@@ -224,9 +412,8 @@ void *osal_mem_alloc(uint32_t size) {
     if (size == 0U) {
         return NULL;
     }
-
-    osal_mem_ensure_init();
-    if (!s_heap_ready) {
+    if (osal_irq_is_in_isr()) {
+        osal_mem_report("mem_alloc is not allowed in ISR context");
         return NULL;
     }
 
@@ -234,9 +421,28 @@ void *osal_mem_alloc(uint32_t size) {
      * 用户请求的是“净荷大小”，真正分配时还要把块头算进去。
      * 同时按指针对齐，保证返回地址适合放常见对象和指针。
      */
-    request_size = osal_mem_align_up(size + (uint32_t)sizeof(osal_heap_block_t));
+    if (!osal_mem_make_request_size(size, &request_size)) {
+        osal_mem_ensure_init();
+        if (s_heap_ready) {
+            osal_mem_note_alloc_fail_locked();
+        }
+        osal_mem_report("alloc size is too large");
+        return NULL;
+    }
+
+    osal_mem_ensure_init();
+    if (!s_heap_ready) {
+        return NULL;
+    }
 
     irq_state = osal_internal_critical_enter();
+    if (request_size > s_heap_size) {
+        osal_mem_note_alloc_fail();
+        osal_internal_critical_exit(irq_state);
+        osal_mem_report("alloc request exceeds heap size");
+        return NULL;
+    }
+
     prev = NULL;
     current = s_free_list;
 
@@ -248,7 +454,7 @@ void *osal_mem_alloc(uint32_t size) {
              * 只有“剩余空间还能再容纳一个块头”时才拆块。
              * 否则把整个块直接分配掉，避免制造一个永远无法再次使用的碎片块。
              */
-            if (remain > (uint32_t)sizeof(osal_heap_block_t)) {
+            if (remain >= OSAL_HEAP_MIN_BLOCK_SIZE) {
                 /* 在当前块后半段切出一个新的空闲块。 */
                 osal_heap_block_t *next = (osal_heap_block_t *)((uint8_t *)current + request_size);
                 /* 新空闲块的大小就是“原块大小 - 本次分出去的大小”。 */
@@ -264,6 +470,7 @@ void *osal_mem_alloc(uint32_t size) {
                 }
                 /* 当前块本身改成“已分配块”，大小记录为 request_size。 */
                 osal_heap_set_block(current, request_size, true);
+                osal_mem_note_alloc(request_size);
             } else {
                 if (prev == NULL) {
                     s_free_list = current->next_free;
@@ -272,6 +479,7 @@ void *osal_mem_alloc(uint32_t size) {
                 }
                 /* 剩余空间太小就整块拿走，避免制造无用碎片。 */
                 osal_heap_set_block(current, current_size, true);
+                osal_mem_note_alloc(current_size);
             }
             /* 已分配块不应该再带着空闲链表指针。 */
             current->next_free = NULL;
@@ -284,8 +492,10 @@ void *osal_mem_alloc(uint32_t size) {
         current = current->next_free;
     }
 
-    osal_internal_critical_exit(irq_state);
     /* 整张空闲链表都找遍后仍没找到足够大的块，说明堆已经无法满足本次申请。 */
+    osal_mem_note_alloc_fail();
+    osal_internal_critical_exit(irq_state);
+    osal_mem_report("alloc failed: no free block is large enough");
     return NULL;
 }
 
@@ -340,6 +550,10 @@ void osal_mem_free(void *ptr) {
     if (ptr == NULL) {
         return;
     }
+    if (osal_irq_is_in_isr()) {
+        osal_mem_report("mem_free is not allowed in ISR context");
+        return;
+    }
 
     osal_mem_ensure_init();
     if (!s_heap_ready) {
@@ -357,6 +571,10 @@ void osal_mem_free(void *ptr) {
         osal_mem_report("free called with invalid heap block header");
         return;
     }
+    if (!osal_heap_block_header_is_valid(block)) {
+        osal_mem_report("free called with corrupted heap block header");
+        return;
+    }
     if (!osal_heap_block_used(block)) {
         /* 这里能挡住最常见的二次释放或非法指针回收。 */
         osal_mem_report("double free or inactive heap block detected");
@@ -365,16 +583,42 @@ void osal_mem_free(void *ptr) {
 
     irq_state = osal_internal_critical_enter();
     /* 先把块状态改回“空闲”，再插回空闲链表。 */
+    osal_mem_note_free(osal_heap_block_size(block));
     osal_heap_set_block(block, osal_heap_block_size(block), false);
     osal_mem_insert_free_block(block);
     osal_internal_critical_exit(irq_state);
 }
 
+/* 函数说明：在已进入临界区的前提下扫描最大连续空闲净荷和空闲块数量。 */
+static uint32_t osal_mem_largest_free_payload_unlocked(uint32_t *free_block_count) {
+    uint32_t largest = 0U;
+    uint32_t count = 0U;
+    osal_heap_block_t *current = s_free_list;
+
+    while (current != NULL) {
+        uint32_t payload = osal_heap_payload_capacity(osal_heap_block_size(current));
+        if (payload > largest) {
+            largest = payload;
+        }
+        ++count;
+        current = current->next_free;
+    }
+
+    if (free_block_count != NULL) {
+        *free_block_count = count;
+    }
+    return largest;
+}
+
 /* 函数说明：获取统一 OSAL 堆当前剩余的可用字节数。 */
 uint32_t osal_mem_get_free_size(void) {
     uint32_t irq_state;
-    uint32_t total = 0U;
-    osal_heap_block_t *current;
+    uint32_t total;
+
+    if (osal_irq_is_in_isr()) {
+        osal_mem_report("mem_get_free_size is not allowed in ISR context");
+        return 0U;
+    }
 
     osal_mem_ensure_init();
     if (!s_heap_ready) {
@@ -382,20 +626,91 @@ uint32_t osal_mem_get_free_size(void) {
     }
 
     irq_state = osal_internal_critical_enter();
-    current = s_free_list;
-    while (current != NULL) {
-        /* 这里统计的是空闲块总大小，包含块头，不是纯净可用净荷大小。 */
-        total += osal_heap_block_size(current);
-        current = current->next_free;
-    }
+    /* 这里统计的是空闲块总大小，包含块头，不是纯净可用净荷大小。 */
+    total = s_free_bytes;
     osal_internal_critical_exit(irq_state);
 
     return total;
 }
 
+/* 函数说明：获取当前最大连续可分配净荷大小。 */
+uint32_t osal_mem_get_largest_free_block(void) {
+    uint32_t irq_state;
+    uint32_t largest;
+
+    if (osal_irq_is_in_isr()) {
+        osal_mem_report("mem_get_largest_free_block is not allowed in ISR context");
+        return 0U;
+    }
+
+    osal_mem_ensure_init();
+    if (!s_heap_ready) {
+        return 0U;
+    }
+
+    irq_state = osal_internal_critical_enter();
+    largest = osal_mem_largest_free_payload_unlocked(NULL);
+    osal_internal_critical_exit(irq_state);
+
+    return largest;
+}
+
+/* 函数说明：获取统一堆历史最小剩余空间。 */
+uint32_t osal_mem_get_min_ever_free_size(void) {
+    uint32_t irq_state;
+    uint32_t min_free;
+
+    if (osal_irq_is_in_isr()) {
+        osal_mem_report("mem_get_min_ever_free_size is not allowed in ISR context");
+        return 0U;
+    }
+
+    osal_mem_ensure_init();
+    if (!s_heap_ready) {
+        return 0U;
+    }
+
+    irq_state = osal_internal_critical_enter();
+    min_free = s_min_ever_free_size;
+    osal_internal_critical_exit(irq_state);
+
+    return min_free;
+}
+
+/* 函数说明：读取统一堆统计信息。 */
+void osal_mem_get_stats(osal_mem_stats_t *stats) {
+    uint32_t irq_state;
+
+    if (stats == NULL) {
+        return;
+    }
+
+    memset(stats, 0, sizeof(*stats));
+    if (osal_irq_is_in_isr()) {
+        osal_mem_report("mem_get_stats is not allowed in ISR context");
+        return;
+    }
+
+    osal_mem_ensure_init();
+    if (!s_heap_ready) {
+        return;
+    }
+
+    irq_state = osal_internal_critical_enter();
+    stats->heap_size = s_heap_size;
+    stats->free_size = s_free_bytes;
+    stats->min_ever_free_size = s_min_ever_free_size;
+    stats->largest_free_block = osal_mem_largest_free_payload_unlocked(&stats->free_block_count);
+    stats->alloc_count = s_alloc_count;
+    stats->free_count = s_free_count;
+    stats->alloc_fail_count = s_alloc_fail_count;
+    osal_internal_critical_exit(irq_state);
+}
+
 /* 函数说明：根据用户提供缓冲区创建一个固定块内存池。 */
 osal_mempool_t *osal_mempool_create(void *pool_buffer, uint32_t block_size, uint32_t block_count) {
     osal_mempool_t *mp;
+    uint32_t stride;
     uint32_t block;
 
     if (osal_irq_is_in_isr()) {
@@ -403,6 +718,25 @@ osal_mempool_t *osal_mempool_create(void *pool_buffer, uint32_t block_size, uint
         return NULL;
     }
     if ((pool_buffer == NULL) || (block_size == 0U) || (block_count == 0U)) {
+        return NULL;
+    }
+    if ((((uintptr_t)pool_buffer) & (uintptr_t)(OSAL_MEM_ALIGN - 1U)) != 0U) {
+        osal_mem_report("mempool_create requires pointer-aligned pool_buffer");
+        return NULL;
+    }
+
+    /*
+     * stride 是每个固定块的实际步长，至少要能放下一个 next 指针。
+     * 这里先把所有乘法和对齐风险检查完，再申请 mempool 控制块，避免失败路径泄漏。
+     */
+    if (block_size < (uint32_t)sizeof(void *)) {
+        stride = (uint32_t)sizeof(void *);
+    } else if (!osal_mem_align_up_checked(block_size, &stride)) {
+        osal_mem_report("mempool block size overflow");
+        return NULL;
+    }
+    if (block_count > (UINT32_MAX / stride)) {
+        osal_mem_report("mempool total size overflow");
         return NULL;
     }
 
@@ -418,7 +752,7 @@ osal_mempool_t *osal_mempool_create(void *pool_buffer, uint32_t block_size, uint
      * 每个块的真实步长 stride 需要至少能放下一个 next 指针，
      * 否则 free_list 无法把空闲块串起来。
      */
-    mp->stride = (block_size < (uint32_t)sizeof(void *)) ? (uint32_t)sizeof(void *) : osal_mem_align_up(block_size);
+    mp->stride = stride;
     mp->free_list = pool_buffer;
     mp->next = NULL;
 
@@ -459,13 +793,14 @@ void *osal_mempool_alloc(osal_mempool_t *mp) {
     if (!osal_mempool_validate_handle(mp)) {
         return NULL;
     }
-    if (mp->free_list == NULL) {
-        /* free_list 为空，说明所有固定块都已经被分配出去了。 */
-        return NULL;
-    }
 
     irq_state = osal_internal_critical_enter();
     block = mp->free_list;
+    if (block == NULL) {
+        /* free_list 为空，说明所有固定块都已经被分配出去了。 */
+        osal_internal_critical_exit(irq_state);
+        return NULL;
+    }
     /* free_list 的头节点就是本次要分配出去的块。 */
     mp->free_list = *osal_block_next_ptr(block);
     osal_internal_critical_exit(irq_state);
@@ -501,6 +836,13 @@ void osal_mempool_free(osal_mempool_t *mp, void *ptr) {
     }
 
     irq_state = osal_internal_critical_enter();
+#if OSAL_CFG_ENABLE_DEBUG
+    if (osal_mempool_free_list_contains_unlocked(mp, block)) {
+        osal_internal_critical_exit(irq_state);
+        osal_mem_report("mempool_free detected double free block");
+        return;
+    }
+#endif
     /* 头插回 free_list，归还操作就是 O(1)。 */
     *osal_block_next_ptr(block) = mp->free_list;
     mp->free_list = block;

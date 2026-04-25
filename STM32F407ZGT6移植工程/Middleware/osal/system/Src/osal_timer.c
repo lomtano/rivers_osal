@@ -457,7 +457,7 @@ void osal_timer_poll(void) {
     bool handled = false;
     int i;
 
-    /* 没有活动定时器时，直接空返回，避免主循环每次都白扫整张表。 */
+    /* 没有活动定时器时，直接空返回，避免 OSAL 顶层循环每轮都白扫整张表。 */
     if (!s_next_expiry_valid) {
         return;
     }
@@ -485,7 +485,7 @@ void osal_timer_poll(void) {
                 /*
                  * 周期定时器不是简单地“now + period”：
                  * 这里持续把 expiry_us 向后推进，直到落到 now_us 之后。
-                 * 这样即使主循环偶尔晚了几拍，也不会把周期漂移永久累计进去。
+                 * 这样即使 OSAL 顶层循环偶尔晚了几拍，也不会把周期漂移永久累计进去。
                  */
                 do {
                     /* 按固定周期向前推进，而不是直接写成 now+period。 */

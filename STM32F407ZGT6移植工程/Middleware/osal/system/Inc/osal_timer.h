@@ -19,12 +19,12 @@ extern "C" {
  * Timer 子系统说明：
  * 1. 基础时基能力（delay / get_tick / uptime）属于内核常开能力。
  * 2. 软件定时器属于可选模块，由 OSAL_CFG_ENABLE_SW_TIMER 控制。
- * 3. 软件定时器关闭时，osal_timer_poll() 仍保留为空操作，调用方无需改主循环。
+ * 3. 软件定时器关闭时，osal_timer_poll() 仍保留为空操作，OSAL 启动循环无需改动。
  *
  * 接口能力矩阵：
  * - get_uptime_us / get_uptime_ms / get_tick: 任务态 / ISR
  * - delay_us / delay_ms: 推荐任务态，不建议 ISR 中使用
- * - poll: 主循环 / 任务态
+ * - poll: OSAL 启动循环 / 任务态
  * - create / start / stop / delete: 任务态
  */
 

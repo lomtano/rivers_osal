@@ -181,7 +181,7 @@ return OSAL_ERR_TIMEOUT;
 ### 9.1 适合
 
 - ISR 向任务侧投递固定大小消息
-- DMA / 外设完成中断向主循环或协作任务侧投递事件
+- DMA / 外设完成中断向 OSAL 顶层循环或协作任务侧投递事件
 - 想用固定单元 ring buffer 管理消息，而不想手写 head/tail/count
 
 ### 9.2 不适合

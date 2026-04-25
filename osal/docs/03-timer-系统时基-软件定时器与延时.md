@@ -165,5 +165,5 @@ static bool tick_reached(uint32_t now, uint32_t deadline) {
 
 - `delay_us()` / `delay_ms()` 是忙等，不是任务调度原语
 - 软件定时器回调运行在任务态，不在中断里执行
-- `osal_timer_poll()` 需要被主循环或任务层持续推进
+- `osal_timer_poll()` 由 `osal_start_system()` 内部持续推进
 - 如果平台没有提供有效 tick 源，系统会退回到 `OSAL_TICK_PERIOD_US` 的保底配置

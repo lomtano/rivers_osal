@@ -91,7 +91,7 @@ static void osal_example_periodic_mark_run(osal_example_periodic_ctx_t *ctx, uin
     }
 
     do {
-        /* 即便主循环某次晚了几拍，这里也按固定节拍补齐，避免长期漂移。 */
+        /* 即便 OSAL 顶层循环某次晚了几拍，这里也按固定节拍补齐，避免长期漂移。 */
         ctx->next_run_ms += ctx->interval_ms;
     } while (osal_example_tick_reached(now_ms, ctx->next_run_ms));
 }
@@ -105,11 +105,9 @@ static void osal_example_periodic_mark_run(osal_example_periodic_ctx_t *ctx, uin
  *     osal_example_queue_demo_init();
  *     osal_example_timer_demo_init();
  *
- *     while (1) {
- *         osal_run();
- *     }
+ *     osal_start_system();
  *
- * 同时要记得在系统时基中断里调用：
+ * osal_start_system() 正常不会返回。同时要记得在系统时基中断里调用：
  *     osal_tick_handler();
  */
 

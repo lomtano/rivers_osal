@@ -9,6 +9,29 @@
 - `components`：构建在 OSAL 之上的可复用外围组件
 - `platform/example`：针对具体板子的桥接和演示接线方式
 
+## 对外接口总览
+
+`components` 层当前主要暴露这些可复用接口：
+
+- `periph_uart_create()` / `periph_uart_destroy()`
+- `periph_uart_write_byte()` / `periph_uart_write()` / `periph_uart_write_string()`
+- `periph_uart_bind_console()` / `periph_uart_get_console()` / `periph_uart_fputc()`
+- `periph_flash_create()` / `periph_flash_destroy()`
+- `periph_flash_unlock()` / `periph_flash_lock()`
+- `periph_flash_erase()` / `periph_flash_read()`
+- `periph_flash_write_u8/u16/u32/u64()`
+- `SEGGER_RTT_*`
+- `button_init()` / `button_attach()` / `button_start()` / `button_stop()` / `button_ticks()`
+
+`platform/example/stm32f4` 层当前主要暴露这些板级示例接口：
+
+- `osal_platform_led1_toggle()`
+- `osal_platform_led2_toggle()`
+- `osal_platform_uart_create()`
+- `osal_platform_flash_create()`
+
+这些接口在 OSAL 中的作用是提供“外设能力怎么接入 OSAL 示例”的参考，不是 OSAL 内核调度、内存、队列或时基语义的一部分。
+
 ## 1. `components` 的定位
 
 `components` 不是调度器，也不是内核同步原语。

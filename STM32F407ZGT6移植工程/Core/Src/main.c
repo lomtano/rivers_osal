@@ -51,7 +51,7 @@ typedef struct {
  * 本文件里的大多数“周期示例”都采用同一种软件运行模式：
  *
  * 1. main() 里只负责创建任务、创建软件定时器，或者做一次性初始化。
- * 2. 主循环持续调用 osal_run()，由协作式调度器反复调用各个任务函数。
+ * 2. osal_start_system() 持续调用协作式调度器，反复执行各个 ready 任务函数。
  * 3. 每个任务在自己被调度到时，只做一次“现在是不是到点了”的检查。
  * 4. 没到点就立刻 return，把执行机会让给其他任务；到点才真正做一次业务。
  * 5. 做完后把“下一次执行时间”往后推进，再等待下一轮调度。
@@ -333,7 +333,7 @@ void app_timer_demo_init(void)
    * 软件运行模式：
    * 1. 这里只创建两个软件定时器：一个 oneshot，一个 periodic。
    * 2. SysTick 中断本身只负责累计时间，不直接执行回调。
-   * 3. 主循环里的 osal_run() 会调用 osal_timer_poll()。
+   * 3. osal_start_system() 内部会持续调用 osal_timer_poll()。
    * 4. osal_timer_poll() 发现到期后，才在任务态执行下面的回调函数。
    *
    * 所以这个示例展示的是“软件定时器 + 串口输出”路径，
@@ -725,7 +725,7 @@ int main(void)
    * 1. osal_init() configures Cortex-M kernel peripherals used by OSAL:
    *    SysTick, NVIC Group (4) / SysTick priority, and optional DWT profiling.
    * 2. Each demo init below owns its own local state block and can be enabled independently.
-   * 3. The cooperative scheduler starts in the main loop through osal_run().
+   * 3. osal_start_system() takes over the top-level scheduler loop and does not return.
    */
   osal_init();
 
@@ -762,14 +762,13 @@ int main(void)
 
   /* USER CODE END 2 */
 
-  /* Infinite loop */
+  /* Start OSAL scheduler. Normal execution stays inside this call. */
   /* USER CODE BEGIN WHILE */
-  while (1)
-  {
-    /* USER CODE END WHILE */
-    osal_run();
-    /* USER CODE BEGIN 3 */
-  }
+  osal_start_system();
+  Error_Handler();
+  /* USER CODE END WHILE */
+
+  /* USER CODE BEGIN 3 */
   /* USER CODE END 3 */
 }
 

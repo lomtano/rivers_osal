@@ -186,7 +186,7 @@
 - `osal_task_start()`
 - `osal_task_stop()`
 - `osal_task_yield()`
-- `osal_run()`
+- `osal_start_system()`
 
 删除：
 
@@ -216,10 +216,10 @@
    - 从调度链表中删除
 4. 调度判断：
    - 检查任务是否仍在调度链表中
-   - 按当前优先级链表执行一轮扫描 `osal_run_priority_list()`
+   - 按当前优先级链表执行一轮扫描 `osal_scheduler_execute_priority_list()`
 5. 调度入口：
-   - `osal_run_internal()`
-   - `osal_run()`
+   - `osal_scheduler_dispatch()`
+   - `osal_start_system()`
 6. 生命周期接口：
    - `create`
    - `delete`
@@ -458,9 +458,9 @@ profiling 改成独立可选功能，由：
 1. 任务结构体结构
 2. 任务状态切换
 3. 调度链表操作
-4. `osal_run_priority_list()`
-5. `osal_run_internal()`
-6. `create/delete/start/stop/yield/run`
+4. `osal_scheduler_execute_priority_list()`
+5. `osal_scheduler_dispatch()`
+6. `create/delete/start/stop/yield/start_system`
 
 ## 11. 示例与集成代码同步
 

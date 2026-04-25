@@ -38,7 +38,8 @@ osal/
 - `timeout_ms = 0U` 表示立即尝试一次，资源不足返回 `OSAL_ERR_RESOURCE`。
 - `timeout_ms = N` 表示在 `N ms` 窗口内基于系统 tick 同步忙等重试，成功返回 `OSAL_OK`，到期返回 `OSAL_ERR_TIMEOUT`。
 - `osal_timer_delay_us()` / `osal_timer_delay_ms()` 仍然是忙等延时，会占用 CPU。
-- 软件定时器由 `osal_timer_poll()` 在主循环中驱动。
+- 软件定时器由 `osal_start_system()` 内部持续调用 `osal_timer_poll()` 驱动。
+- `osal_start_system()` 每轮调度后会调用 `OSAL_IDLE_HOOK()`，默认空操作，可用于接入低功耗 idle 处理。
 
 ## 模块边界
 
@@ -68,7 +69,7 @@ osal/
 2. 根据目标板修改 `osal_config.h` 和 `osal_cortexm.h` 中的相关配置。
 3. 应用层包含 `osal.h`。
 4. 硬件初始化完成后调用 `osal_init()`。
-5. 主循环中持续调用 `osal_run()`。
+5. 创建并启动任务、组件或软件定时器后调用 `osal_start_system()`，正常情况下不会再返回。
 6. 在 `SysTick_Handler()` 中调用 `osal_tick_handler()`。
 
 ## 使用边界
@@ -79,6 +80,7 @@ osal/
 - `queue(timeout_ms > 0)` 只适合资源状态可能被 ISR、DMA 或其他异步硬件路径改变的场景。
 - 如果资源状态只能靠别的协作任务推进，任务里应优先使用 `timeout_ms = 0U`，由应用自己决定何时重试。
 - 如果你需要“发送后唤醒等待该队列的任务”，当前 queue 不提供这层等待/恢复语义。
+- 统一堆 `osal_mem_alloc/free` 只允许任务态使用；ISR 中固定大小对象应使用 `osal_mempool_alloc/free` 或预分配缓冲区。
 
 ## 推荐阅读顺序
 

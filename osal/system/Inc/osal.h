@@ -62,6 +62,17 @@ typedef enum {
 #endif
 
 /*
+ * 顶层调度循环空闲钩子：
+ * 1. 默认不做任何事。
+ * 2. 如果应用要做低功耗，可在这里接入 __WFI() 或板级 idle 处理。
+ * 3. 这个钩子由 osal_start_system() 在每轮协作式调度后调用；
+ *    如果你的任务需要持续高速轮询，不要在这里无条件睡眠。
+ */
+#ifndef OSAL_IDLE_HOOK
+#define OSAL_IDLE_HOOK() ((void)0)
+#endif
+
+/*
  * 句柄资源契约：
  * 1. create / alloc 成功后，资源所有权归调用方。
  * 2. delete / destroy / free 成功后，原句柄或指针立即失效。
