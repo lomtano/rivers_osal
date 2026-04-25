@@ -1,7 +1,7 @@
 Dependencies for Project 'rivers_osal', Target 'rivers_osal': (DO NOT MODIFY !)
 CompilerVersion: 5060960::V5.06 update 7 (build 960)::ARMCC
 F (startup_stm32f407xx.s)(0x69D27974)(--cpu Cortex-M4.fp.sp -g --apcs=interwork --pd "__MICROLIB SETA 1"-I.\RTE\_rivers_osal-ID:\APP\Keil5\ARM\PACK\ARM\CMSIS\6.1.0\CMSIS\Core\Include-ID:\APP\Keil5\ARM\PACK\Keil\STM32F4xx_DFP\2.17.1\Drivers\CMSIS\Device\ST\STM32F4xx\Include--pd "__UVISION_VERSION SETA 543" --pd "STM32F407xx SETA 1" --pd "_RTE_ SETA 1"--list ..\startup_stm32f407xx.lst --xref -o rivers_osal\startup_stm32f407xx.o --depend rivers_osal\startup_stm32f407xx.d)
-F (../Core/Src/main.c)(0x69DA7D06)(--c99 -c --cpu Cortex-M4.fp.sp -D__MICROLIB -g -O3 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I ../Drivers/CMSIS/Include -I ../middleware/osal/Inc -I ../Middleware/osal/system/Inc -I ../Middleware/osal/components/periph/usart/Inc -I ../Middleware/osal/components/periph/flash/Inc -I ../Middleware/osal/platform -I ../Middleware/osal/platform/example/stm32f4 -I ../Middleware/osal/components/RTT-I.\RTE\_rivers_osal-ID:\APP\Keil5\ARM\PACK\ARM\CMSIS\6.1.0\CMSIS\Core\Include-ID:\APP\Keil5\ARM\PACK\Keil\STM32F4xx_DFP\2.17.1\Drivers\CMSIS\Device\ST\STM32F4xx\Include-D__UVISION_VERSION="543" -DSTM32F407xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F407xx-o rivers_osal\main.o --omf_browse rivers_osal\main.crf --depend rivers_osal\main.d)
+F (../Core/Src/main.c)(0x69ECBE8B)(--c99 -c --cpu Cortex-M4.fp.sp -D__MICROLIB -g -O3 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I ../Drivers/CMSIS/Include -I ../middleware/osal/Inc -I ../Middleware/osal/system/Inc -I ../Middleware/osal/components/periph/usart/Inc -I ../Middleware/osal/components/periph/flash/Inc -I ../Middleware/osal/platform -I ../Middleware/osal/platform/example/stm32f4 -I ../Middleware/osal/components/RTT-I.\RTE\_rivers_osal-ID:\APP\Keil5\ARM\PACK\ARM\CMSIS\6.1.0\CMSIS\Core\Include-ID:\APP\Keil5\ARM\PACK\Keil\STM32F4xx_DFP\2.17.1\Drivers\CMSIS\Device\ST\STM32F4xx\Include-D__UVISION_VERSION="543" -DSTM32F407xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F407xx-o rivers_osal\main.o --omf_browse rivers_osal\main.crf --depend rivers_osal\main.d)
 I (../Core/Inc/main.h)(0x69C91308)
 I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h)(0x698F4031)
 I (../Core/Inc/stm32f4xx_hal_conf.h)(0x69D27972)
@@ -41,20 +41,19 @@ I (../Middleware/osal/components/RTT/SEGGER_RTT_FORMATTER.h)(0x69D9458D)
 I (../Core/Inc/dma.h)(0x69C90C18)
 I (../Core/Inc/usart.h)(0x69C90C18)
 I (../Core/Inc/gpio.h)(0x69C90C17)
-I (../Middleware/osal/system/Inc/osal.h)(0x69D9458D)
-I (../Middleware/osal/system/Inc/osal_task.h)(0x69DA7D06)
+I (../Middleware/osal/system/Inc/osal.h)(0x69EC48D2)
+I (../Middleware/osal/system/Inc/osal_config.h)(0x69EB4338)
+I (../Middleware/osal/system/Inc/osal_task.h)(0x69EC49FE)
 I (D:\APP\Keil5\ARM\ARMCC\include\stdbool.h)(0x6025237C)
-I (../Middleware/osal/system/Inc/osal_mem.h)(0x69D9B63B)
-I (../Middleware/osal/system/Inc/osal_irq.h)(0x69D9B63B)
-I (../Middleware/osal/system/Inc/osal_timer.h)(0x69D9458D)
-I (../Middleware/osal/system/Inc/osal_platform.h)(0x69D9B63B)
-I (../Middleware/osal/system/Inc/osal_queue.h)(0x69D9458D)
-I (../Middleware/osal/system/Inc/osal_event.h)(0x69DA7D06)
-I (../Middleware/osal/system/Inc/osal_mutex.h)(0x69DA7D06)
+I (../Middleware/osal/system/Inc/osal_mem.h)(0x69EC4A43)
+I (../Middleware/osal/system/Inc/osal_irq.h)(0x69EAFA29)
+I (../Middleware/osal/system/Inc/osal_timer.h)(0x69EC8F5B)
+I (../Middleware/osal/system/Inc/osal_cortexm.h)(0x69EAE64A)
+I (../Middleware/osal/system/Inc/osal_queue.h)(0x69EAFA29)
 I (../Middleware/osal/components/periph/usart/Inc/periph_uart.h)(0x69D9B63B)
 I (D:\APP\Keil5\ARM\ARMCC\include\stdio.h)(0x60252374)
 I (../Middleware/osal/components/periph/flash/Inc/periph_flash.h)(0x69D9B63B)
-I (../Middleware/osal/platform/example/stm32f4/osal_platform_stm32f4.h)(0x69D9B730)
+I (../Middleware/osal/platform/example/stm32f4/osal_platform_stm32f4.h)(0x69DB10D3)
 I (D:\APP\Keil5\ARM\ARMCC\include\string.h)(0x6025237E)
 F (../Core/Src/gpio.c)(0x69CB97AB)(--c99 -c --cpu Cortex-M4.fp.sp -D__MICROLIB -g -O3 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I ../Drivers/CMSIS/Include -I ../middleware/osal/Inc -I ../Middleware/osal/system/Inc -I ../Middleware/osal/components/periph/usart/Inc -I ../Middleware/osal/components/periph/flash/Inc -I ../Middleware/osal/platform -I ../Middleware/osal/platform/example/stm32f4 -I ../Middleware/osal/components/RTT-I.\RTE\_rivers_osal-ID:\APP\Keil5\ARM\PACK\ARM\CMSIS\6.1.0\CMSIS\Core\Include-ID:\APP\Keil5\ARM\PACK\Keil\STM32F4xx_DFP\2.17.1\Drivers\CMSIS\Device\ST\STM32F4xx\Include-D__UVISION_VERSION="543" -DSTM32F407xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F407xx-o rivers_osal\gpio.o --omf_browse rivers_osal\gpio.crf --depend rivers_osal\gpio.d)
 I (../Core/Inc/gpio.h)(0x69C90C17)
@@ -208,20 +207,19 @@ I (D:\APP\Keil5\ARM\ARMCC\include\stdlib.h)(0x60252374)
 I (D:\APP\Keil5\ARM\ARMCC\include\stdarg.h)(0x60252376)
 I (../Middleware/osal/components/RTT/SEGGER_RTT_FORMATTER.h)(0x69D9458D)
 I (../Core/Inc/stm32f4xx_it.h)(0x69D27972)
-I (../Middleware/osal/system/Inc/osal.h)(0x69D9458D)
-I (../Middleware/osal/system/Inc/osal_task.h)(0x69DA7D06)
+I (../Middleware/osal/system/Inc/osal.h)(0x69EC48D2)
+I (../Middleware/osal/system/Inc/osal_config.h)(0x69EB4338)
+I (../Middleware/osal/system/Inc/osal_task.h)(0x69EC49FE)
 I (D:\APP\Keil5\ARM\ARMCC\include\stdbool.h)(0x6025237C)
-I (../Middleware/osal/system/Inc/osal_mem.h)(0x69D9B63B)
-I (../Middleware/osal/system/Inc/osal_irq.h)(0x69D9B63B)
-I (../Middleware/osal/system/Inc/osal_timer.h)(0x69D9458D)
-I (../Middleware/osal/system/Inc/osal_platform.h)(0x69D9B63B)
-I (../Middleware/osal/system/Inc/osal_queue.h)(0x69D9458D)
-I (../Middleware/osal/system/Inc/osal_event.h)(0x69DA7D06)
-I (../Middleware/osal/system/Inc/osal_mutex.h)(0x69DA7D06)
+I (../Middleware/osal/system/Inc/osal_mem.h)(0x69EC4A43)
+I (../Middleware/osal/system/Inc/osal_irq.h)(0x69EAFA29)
+I (../Middleware/osal/system/Inc/osal_timer.h)(0x69EC8F5B)
+I (../Middleware/osal/system/Inc/osal_cortexm.h)(0x69EAE64A)
+I (../Middleware/osal/system/Inc/osal_queue.h)(0x69EAFA29)
 I (../Middleware/osal/components/periph/usart/Inc/periph_uart.h)(0x69D9B63B)
 I (D:\APP\Keil5\ARM\ARMCC\include\stdio.h)(0x60252374)
 I (../Middleware/osal/components/periph/flash/Inc/periph_flash.h)(0x69D9B63B)
-I (../Middleware/osal/platform/example/stm32f4/osal_platform_stm32f4.h)(0x69D9B730)
+I (../Middleware/osal/platform/example/stm32f4/osal_platform_stm32f4.h)(0x69DB10D3)
 I (../Core/Inc/gpio.h)(0x69C90C17)
 I (../Core/Inc/usart.h)(0x69C90C18)
 F (../Core/Src/stm32f4xx_hal_msp.c)(0x69C90C18)(--c99 -c --cpu Cortex-M4.fp.sp -D__MICROLIB -g -O3 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I ../Drivers/CMSIS/Include -I ../middleware/osal/Inc -I ../Middleware/osal/system/Inc -I ../Middleware/osal/components/periph/usart/Inc -I ../Middleware/osal/components/periph/flash/Inc -I ../Middleware/osal/platform -I ../Middleware/osal/platform/example/stm32f4 -I ../Middleware/osal/components/RTT-I.\RTE\_rivers_osal-ID:\APP\Keil5\ARM\PACK\ARM\CMSIS\6.1.0\CMSIS\Core\Include-ID:\APP\Keil5\ARM\PACK\Keil\STM32F4xx_DFP\2.17.1\Drivers\CMSIS\Device\ST\STM32F4xx\Include-D__UVISION_VERSION="543" -DSTM32F407xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F407xx-o rivers_osal\stm32f4xx_hal_msp.o --omf_browse rivers_osal\stm32f4xx_hal_msp.crf --depend rivers_osal\stm32f4xx_hal_msp.d)
@@ -819,83 +817,30 @@ I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pwr_ex.h)(0x698F4032)
 I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim.h)(0x698F4031)
 I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim_ex.h)(0x698F4032)
 I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h)(0x698F4032)
-F (..\Middleware\osal\system\Src\osal_event.c)(0x69DA7D06)(--c99 -c --cpu Cortex-M4.fp.sp -D__MICROLIB -g -O3 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I ../Drivers/CMSIS/Include -I ../middleware/osal/Inc -I ../Middleware/osal/system/Inc -I ../Middleware/osal/components/periph/usart/Inc -I ../Middleware/osal/components/periph/flash/Inc -I ../Middleware/osal/platform -I ../Middleware/osal/platform/example/stm32f4 -I ../Middleware/osal/components/RTT-I.\RTE\_rivers_osal-ID:\APP\Keil5\ARM\PACK\ARM\CMSIS\6.1.0\CMSIS\Core\Include-ID:\APP\Keil5\ARM\PACK\Keil\STM32F4xx_DFP\2.17.1\Drivers\CMSIS\Device\ST\STM32F4xx\Include-D__UVISION_VERSION="543" -DSTM32F407xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F407xx-o rivers_osal\osal_event.o --omf_browse rivers_osal\osal_event.crf --depend rivers_osal\osal_event.d)
-I (..\Middleware\osal\system\Src\../Inc/osal.h)(0x69D9458D)
-I (D:\APP\Keil5\ARM\ARMCC\include\stdint.h)(0x6025237E)
-I (D:\APP\Keil5\ARM\ARMCC\include\stddef.h)(0x6025237E)
-I (..\Middleware\osal\system\Src\../Inc/osal_task.h)(0x69DA7D06)
+F (..\Middleware\osal\system\Src\osal_irq.c)(0x69EAE705)(--c99 -c --cpu Cortex-M4.fp.sp -D__MICROLIB -g -O3 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I ../Drivers/CMSIS/Include -I ../middleware/osal/Inc -I ../Middleware/osal/system/Inc -I ../Middleware/osal/components/periph/usart/Inc -I ../Middleware/osal/components/periph/flash/Inc -I ../Middleware/osal/platform -I ../Middleware/osal/platform/example/stm32f4 -I ../Middleware/osal/components/RTT-I.\RTE\_rivers_osal-ID:\APP\Keil5\ARM\PACK\ARM\CMSIS\6.1.0\CMSIS\Core\Include-ID:\APP\Keil5\ARM\PACK\Keil\STM32F4xx_DFP\2.17.1\Drivers\CMSIS\Device\ST\STM32F4xx\Include-D__UVISION_VERSION="543" -DSTM32F407xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F407xx-o rivers_osal\osal_irq.o --omf_browse rivers_osal\osal_irq.crf --depend rivers_osal\osal_irq.d)
+I (..\Middleware\osal\system\Src\../Inc/osal_irq.h)(0x69EAFA29)
 I (D:\APP\Keil5\ARM\ARMCC\include\stdbool.h)(0x6025237C)
-I (..\Middleware\osal\system\Src\../Inc/osal_mem.h)(0x69D9B63B)
-I (..\Middleware\osal\system\Src\../Inc/osal_irq.h)(0x69D9B63B)
-I (..\Middleware\osal\system\Src\../Inc/osal_timer.h)(0x69D9458D)
-I (..\Middleware\osal\system\Src\../Inc/osal_platform.h)(0x69D9B63B)
+I (D:\APP\Keil5\ARM\ARMCC\include\stdint.h)(0x6025237E)
+I (..\Middleware\osal\system\Src\../Inc/osal_cortexm.h)(0x69EAE64A)
+I (..\Middleware\osal\system\Src\../Inc/osal_config.h)(0x69EB4338)
 I (../Drivers/CMSIS/Include/cmsis_armcc.h)(0x698F4032)
-I (..\Middleware\osal\system\Src\../Inc/osal_queue.h)(0x69D9458D)
-I (..\Middleware\osal\system\Src\../Inc/osal_event.h)(0x69DA7D06)
-I (..\Middleware\osal\system\Src\../Inc/osal_mutex.h)(0x69DA7D06)
+F (..\Middleware\osal\system\Src\osal_mem.c)(0x69EC49FD)(--c99 -c --cpu Cortex-M4.fp.sp -D__MICROLIB -g -O3 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I ../Drivers/CMSIS/Include -I ../middleware/osal/Inc -I ../Middleware/osal/system/Inc -I ../Middleware/osal/components/periph/usart/Inc -I ../Middleware/osal/components/periph/flash/Inc -I ../Middleware/osal/platform -I ../Middleware/osal/platform/example/stm32f4 -I ../Middleware/osal/components/RTT-I.\RTE\_rivers_osal-ID:\APP\Keil5\ARM\PACK\ARM\CMSIS\6.1.0\CMSIS\Core\Include-ID:\APP\Keil5\ARM\PACK\Keil\STM32F4xx_DFP\2.17.1\Drivers\CMSIS\Device\ST\STM32F4xx\Include-D__UVISION_VERSION="543" -DSTM32F407xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F407xx-o rivers_osal\osal_mem.o --omf_browse rivers_osal\osal_mem.crf --depend rivers_osal\osal_mem.d)
+I (..\Middleware\osal\system\Src\../Inc/osal_mem.h)(0x69EC4A43)
+I (D:\APP\Keil5\ARM\ARMCC\include\stdint.h)(0x6025237E)
+I (..\Middleware\osal\system\Src\../Inc/osal.h)(0x69EC48D2)
+I (..\Middleware\osal\system\Src\../Inc/osal_config.h)(0x69EB4338)
+I (D:\APP\Keil5\ARM\ARMCC\include\stddef.h)(0x6025237E)
+I (..\Middleware\osal\system\Src\../Inc/osal_task.h)(0x69EC49FE)
+I (D:\APP\Keil5\ARM\ARMCC\include\stdbool.h)(0x6025237C)
+I (..\Middleware\osal\system\Src\../Inc/osal_irq.h)(0x69EAFA29)
+I (..\Middleware\osal\system\Src\../Inc/osal_timer.h)(0x69EC8F5B)
+I (..\Middleware\osal\system\Src\../Inc/osal_cortexm.h)(0x69EAE64A)
+I (../Drivers/CMSIS/Include/cmsis_armcc.h)(0x698F4032)
+I (..\Middleware\osal\system\Src\../Inc/osal_queue.h)(0x69EAFA29)
 I (../Middleware/osal/components/periph/usart/Inc/periph_uart.h)(0x69D9B63B)
 I (D:\APP\Keil5\ARM\ARMCC\include\stdio.h)(0x60252374)
 I (../Middleware/osal/components/periph/flash/Inc/periph_flash.h)(0x69D9B63B)
-I (../Middleware/osal/platform/example/stm32f4/osal_platform_stm32f4.h)(0x69D9B730)
-I (../Core/Inc/main.h)(0x69C91308)
-I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h)(0x698F4031)
-I (../Core/Inc/stm32f4xx_hal_conf.h)(0x69D27972)
-I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_rcc.h)(0x698F4031)
-I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_def.h)(0x698F4032)
-I (../Drivers/CMSIS/Device/ST/STM32F4xx/Include/stm32f4xx.h)(0x698F4032)
-I (../Drivers/CMSIS/Device/ST/STM32F4xx/Include/stm32f407xx.h)(0x698F4032)
-I (../Drivers/CMSIS/Include/core_cm4.h)(0x698F4032)
-I (../Drivers/CMSIS/Include/cmsis_version.h)(0x698F4032)
-I (../Drivers/CMSIS/Include/cmsis_compiler.h)(0x698F4032)
-I (../Drivers/CMSIS/Include/mpu_armv7.h)(0x698F4032)
-I (../Drivers/CMSIS/Device/ST/STM32F4xx/Include/system_stm32f4xx.h)(0x698F4032)
-I (../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy/stm32_hal_legacy.h)(0x698F4031)
-I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_rcc_ex.h)(0x698F4031)
-I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_gpio.h)(0x698F4032)
-I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_gpio_ex.h)(0x698F4031)
-I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_exti.h)(0x698F4031)
-I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_dma.h)(0x698F4032)
-I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_dma_ex.h)(0x698F4031)
-I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_cortex.h)(0x698F4031)
-I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_flash.h)(0x698F4031)
-I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_flash_ex.h)(0x698F4031)
-I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_flash_ramfunc.h)(0x698F4032)
-I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pwr.h)(0x698F4032)
-I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pwr_ex.h)(0x698F4032)
-I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim.h)(0x698F4031)
-I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim_ex.h)(0x698F4032)
-I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h)(0x698F4032)
-I (../Middleware/osal/components/RTT/SEGGER_RTT.h)(0x69D9458D)
-I (../Middleware/osal/components/RTT/SEGGER_RTT_Conf.h)(0x69D9458D)
-I (D:\APP\Keil5\ARM\ARMCC\include\stdlib.h)(0x60252374)
-I (D:\APP\Keil5\ARM\ARMCC\include\stdarg.h)(0x60252376)
-I (../Middleware/osal/components/RTT/SEGGER_RTT_FORMATTER.h)(0x69D9458D)
-I (../Core/Inc/gpio.h)(0x69C90C17)
-I (../Core/Inc/usart.h)(0x69C90C18)
-F (..\Middleware\osal\system\Src\osal_irq.c)(0x69D9B63B)(--c99 -c --cpu Cortex-M4.fp.sp -D__MICROLIB -g -O3 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I ../Drivers/CMSIS/Include -I ../middleware/osal/Inc -I ../Middleware/osal/system/Inc -I ../Middleware/osal/components/periph/usart/Inc -I ../Middleware/osal/components/periph/flash/Inc -I ../Middleware/osal/platform -I ../Middleware/osal/platform/example/stm32f4 -I ../Middleware/osal/components/RTT-I.\RTE\_rivers_osal-ID:\APP\Keil5\ARM\PACK\ARM\CMSIS\6.1.0\CMSIS\Core\Include-ID:\APP\Keil5\ARM\PACK\Keil\STM32F4xx_DFP\2.17.1\Drivers\CMSIS\Device\ST\STM32F4xx\Include-D__UVISION_VERSION="543" -DSTM32F407xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F407xx-o rivers_osal\osal_irq.o --omf_browse rivers_osal\osal_irq.crf --depend rivers_osal\osal_irq.d)
-I (..\Middleware\osal\system\Src\../Inc/osal_irq.h)(0x69D9B63B)
-I (D:\APP\Keil5\ARM\ARMCC\include\stdbool.h)(0x6025237C)
-I (D:\APP\Keil5\ARM\ARMCC\include\stdint.h)(0x6025237E)
-I (..\Middleware\osal\system\Src\../Inc/osal_platform.h)(0x69D9B63B)
-I (../Drivers/CMSIS/Include/cmsis_armcc.h)(0x698F4032)
-F (..\Middleware\osal\system\Src\osal_mem.c)(0x69D9B3BE)(--c99 -c --cpu Cortex-M4.fp.sp -D__MICROLIB -g -O3 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I ../Drivers/CMSIS/Include -I ../middleware/osal/Inc -I ../Middleware/osal/system/Inc -I ../Middleware/osal/components/periph/usart/Inc -I ../Middleware/osal/components/periph/flash/Inc -I ../Middleware/osal/platform -I ../Middleware/osal/platform/example/stm32f4 -I ../Middleware/osal/components/RTT-I.\RTE\_rivers_osal-ID:\APP\Keil5\ARM\PACK\ARM\CMSIS\6.1.0\CMSIS\Core\Include-ID:\APP\Keil5\ARM\PACK\Keil\STM32F4xx_DFP\2.17.1\Drivers\CMSIS\Device\ST\STM32F4xx\Include-D__UVISION_VERSION="543" -DSTM32F407xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F407xx-o rivers_osal\osal_mem.o --omf_browse rivers_osal\osal_mem.crf --depend rivers_osal\osal_mem.d)
-I (..\Middleware\osal\system\Src\../Inc/osal_mem.h)(0x69D9B63B)
-I (D:\APP\Keil5\ARM\ARMCC\include\stdint.h)(0x6025237E)
-I (..\Middleware\osal\system\Src\../Inc/osal.h)(0x69D9458D)
-I (D:\APP\Keil5\ARM\ARMCC\include\stddef.h)(0x6025237E)
-I (..\Middleware\osal\system\Src\../Inc/osal_task.h)(0x69DA7D06)
-I (D:\APP\Keil5\ARM\ARMCC\include\stdbool.h)(0x6025237C)
-I (..\Middleware\osal\system\Src\../Inc/osal_irq.h)(0x69D9B63B)
-I (..\Middleware\osal\system\Src\../Inc/osal_timer.h)(0x69D9458D)
-I (..\Middleware\osal\system\Src\../Inc/osal_platform.h)(0x69D9B63B)
-I (../Drivers/CMSIS/Include/cmsis_armcc.h)(0x698F4032)
-I (..\Middleware\osal\system\Src\../Inc/osal_queue.h)(0x69D9458D)
-I (..\Middleware\osal\system\Src\../Inc/osal_event.h)(0x69DA7D06)
-I (..\Middleware\osal\system\Src\../Inc/osal_mutex.h)(0x69DA7D06)
-I (../Middleware/osal/components/periph/usart/Inc/periph_uart.h)(0x69D9B63B)
-I (D:\APP\Keil5\ARM\ARMCC\include\stdio.h)(0x60252374)
-I (../Middleware/osal/components/periph/flash/Inc/periph_flash.h)(0x69D9B63B)
-I (../Middleware/osal/platform/example/stm32f4/osal_platform_stm32f4.h)(0x69D9B730)
+I (../Middleware/osal/platform/example/stm32f4/osal_platform_stm32f4.h)(0x69DB10D3)
 I (../Core/Inc/main.h)(0x69C91308)
 I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h)(0x698F4031)
 I (../Core/Inc/stm32f4xx_hal_conf.h)(0x69D27972)
@@ -932,77 +877,23 @@ I (../Middleware/osal/components/RTT/SEGGER_RTT_FORMATTER.h)(0x69D9458D)
 I (../Core/Inc/gpio.h)(0x69C90C17)
 I (../Core/Inc/usart.h)(0x69C90C18)
 I (D:\APP\Keil5\ARM\ARMCC\include\string.h)(0x6025237E)
-F (..\Middleware\osal\system\Src\osal_mutex.c)(0x69DA7D06)(--c99 -c --cpu Cortex-M4.fp.sp -D__MICROLIB -g -O3 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I ../Drivers/CMSIS/Include -I ../middleware/osal/Inc -I ../Middleware/osal/system/Inc -I ../Middleware/osal/components/periph/usart/Inc -I ../Middleware/osal/components/periph/flash/Inc -I ../Middleware/osal/platform -I ../Middleware/osal/platform/example/stm32f4 -I ../Middleware/osal/components/RTT-I.\RTE\_rivers_osal-ID:\APP\Keil5\ARM\PACK\ARM\CMSIS\6.1.0\CMSIS\Core\Include-ID:\APP\Keil5\ARM\PACK\Keil\STM32F4xx_DFP\2.17.1\Drivers\CMSIS\Device\ST\STM32F4xx\Include-D__UVISION_VERSION="543" -DSTM32F407xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F407xx-o rivers_osal\osal_mutex.o --omf_browse rivers_osal\osal_mutex.crf --depend rivers_osal\osal_mutex.d)
-I (..\Middleware\osal\system\Src\../Inc/osal.h)(0x69D9458D)
+F (..\Middleware\osal\system\Src\osal_queue.c)(0x69EAF38A)(--c99 -c --cpu Cortex-M4.fp.sp -D__MICROLIB -g -O3 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I ../Drivers/CMSIS/Include -I ../middleware/osal/Inc -I ../Middleware/osal/system/Inc -I ../Middleware/osal/components/periph/usart/Inc -I ../Middleware/osal/components/periph/flash/Inc -I ../Middleware/osal/platform -I ../Middleware/osal/platform/example/stm32f4 -I ../Middleware/osal/components/RTT-I.\RTE\_rivers_osal-ID:\APP\Keil5\ARM\PACK\ARM\CMSIS\6.1.0\CMSIS\Core\Include-ID:\APP\Keil5\ARM\PACK\Keil\STM32F4xx_DFP\2.17.1\Drivers\CMSIS\Device\ST\STM32F4xx\Include-D__UVISION_VERSION="543" -DSTM32F407xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F407xx-o rivers_osal\osal_queue.o --omf_browse rivers_osal\osal_queue.crf --depend rivers_osal\osal_queue.d)
+I (..\Middleware\osal\system\Src\../Inc/osal_queue.h)(0x69EAFA29)
 I (D:\APP\Keil5\ARM\ARMCC\include\stdint.h)(0x6025237E)
+I (..\Middleware\osal\system\Src\../Inc/osal.h)(0x69EC48D2)
+I (..\Middleware\osal\system\Src\../Inc/osal_config.h)(0x69EB4338)
 I (D:\APP\Keil5\ARM\ARMCC\include\stddef.h)(0x6025237E)
-I (..\Middleware\osal\system\Src\../Inc/osal_task.h)(0x69DA7D06)
+I (..\Middleware\osal\system\Src\../Inc/osal_task.h)(0x69EC49FE)
 I (D:\APP\Keil5\ARM\ARMCC\include\stdbool.h)(0x6025237C)
-I (..\Middleware\osal\system\Src\../Inc/osal_mem.h)(0x69D9B63B)
-I (..\Middleware\osal\system\Src\../Inc/osal_irq.h)(0x69D9B63B)
-I (..\Middleware\osal\system\Src\../Inc/osal_timer.h)(0x69D9458D)
-I (..\Middleware\osal\system\Src\../Inc/osal_platform.h)(0x69D9B63B)
+I (..\Middleware\osal\system\Src\../Inc/osal_mem.h)(0x69EC4A43)
+I (..\Middleware\osal\system\Src\../Inc/osal_irq.h)(0x69EAFA29)
+I (..\Middleware\osal\system\Src\../Inc/osal_timer.h)(0x69EC8F5B)
+I (..\Middleware\osal\system\Src\../Inc/osal_cortexm.h)(0x69EAE64A)
 I (../Drivers/CMSIS/Include/cmsis_armcc.h)(0x698F4032)
-I (..\Middleware\osal\system\Src\../Inc/osal_queue.h)(0x69D9458D)
-I (..\Middleware\osal\system\Src\../Inc/osal_event.h)(0x69DA7D06)
-I (..\Middleware\osal\system\Src\../Inc/osal_mutex.h)(0x69DA7D06)
 I (../Middleware/osal/components/periph/usart/Inc/periph_uart.h)(0x69D9B63B)
 I (D:\APP\Keil5\ARM\ARMCC\include\stdio.h)(0x60252374)
 I (../Middleware/osal/components/periph/flash/Inc/periph_flash.h)(0x69D9B63B)
-I (../Middleware/osal/platform/example/stm32f4/osal_platform_stm32f4.h)(0x69D9B730)
-I (../Core/Inc/main.h)(0x69C91308)
-I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h)(0x698F4031)
-I (../Core/Inc/stm32f4xx_hal_conf.h)(0x69D27972)
-I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_rcc.h)(0x698F4031)
-I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_def.h)(0x698F4032)
-I (../Drivers/CMSIS/Device/ST/STM32F4xx/Include/stm32f4xx.h)(0x698F4032)
-I (../Drivers/CMSIS/Device/ST/STM32F4xx/Include/stm32f407xx.h)(0x698F4032)
-I (../Drivers/CMSIS/Include/core_cm4.h)(0x698F4032)
-I (../Drivers/CMSIS/Include/cmsis_version.h)(0x698F4032)
-I (../Drivers/CMSIS/Include/cmsis_compiler.h)(0x698F4032)
-I (../Drivers/CMSIS/Include/mpu_armv7.h)(0x698F4032)
-I (../Drivers/CMSIS/Device/ST/STM32F4xx/Include/system_stm32f4xx.h)(0x698F4032)
-I (../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy/stm32_hal_legacy.h)(0x698F4031)
-I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_rcc_ex.h)(0x698F4031)
-I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_gpio.h)(0x698F4032)
-I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_gpio_ex.h)(0x698F4031)
-I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_exti.h)(0x698F4031)
-I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_dma.h)(0x698F4032)
-I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_dma_ex.h)(0x698F4031)
-I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_cortex.h)(0x698F4031)
-I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_flash.h)(0x698F4031)
-I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_flash_ex.h)(0x698F4031)
-I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_flash_ramfunc.h)(0x698F4032)
-I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pwr.h)(0x698F4032)
-I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pwr_ex.h)(0x698F4032)
-I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim.h)(0x698F4031)
-I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim_ex.h)(0x698F4032)
-I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h)(0x698F4032)
-I (../Middleware/osal/components/RTT/SEGGER_RTT.h)(0x69D9458D)
-I (../Middleware/osal/components/RTT/SEGGER_RTT_Conf.h)(0x69D9458D)
-I (D:\APP\Keil5\ARM\ARMCC\include\stdlib.h)(0x60252374)
-I (D:\APP\Keil5\ARM\ARMCC\include\stdarg.h)(0x60252376)
-I (../Middleware/osal/components/RTT/SEGGER_RTT_FORMATTER.h)(0x69D9458D)
-I (../Core/Inc/gpio.h)(0x69C90C17)
-I (../Core/Inc/usart.h)(0x69C90C18)
-F (..\Middleware\osal\system\Src\osal_queue.c)(0x69D9489C)(--c99 -c --cpu Cortex-M4.fp.sp -D__MICROLIB -g -O3 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I ../Drivers/CMSIS/Include -I ../middleware/osal/Inc -I ../Middleware/osal/system/Inc -I ../Middleware/osal/components/periph/usart/Inc -I ../Middleware/osal/components/periph/flash/Inc -I ../Middleware/osal/platform -I ../Middleware/osal/platform/example/stm32f4 -I ../Middleware/osal/components/RTT-I.\RTE\_rivers_osal-ID:\APP\Keil5\ARM\PACK\ARM\CMSIS\6.1.0\CMSIS\Core\Include-ID:\APP\Keil5\ARM\PACK\Keil\STM32F4xx_DFP\2.17.1\Drivers\CMSIS\Device\ST\STM32F4xx\Include-D__UVISION_VERSION="543" -DSTM32F407xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F407xx-o rivers_osal\osal_queue.o --omf_browse rivers_osal\osal_queue.crf --depend rivers_osal\osal_queue.d)
-I (..\Middleware\osal\system\Src\../Inc/osal.h)(0x69D9458D)
-I (D:\APP\Keil5\ARM\ARMCC\include\stdint.h)(0x6025237E)
-I (D:\APP\Keil5\ARM\ARMCC\include\stddef.h)(0x6025237E)
-I (..\Middleware\osal\system\Src\../Inc/osal_task.h)(0x69DA7D06)
-I (D:\APP\Keil5\ARM\ARMCC\include\stdbool.h)(0x6025237C)
-I (..\Middleware\osal\system\Src\../Inc/osal_mem.h)(0x69D9B63B)
-I (..\Middleware\osal\system\Src\../Inc/osal_irq.h)(0x69D9B63B)
-I (..\Middleware\osal\system\Src\../Inc/osal_timer.h)(0x69D9458D)
-I (..\Middleware\osal\system\Src\../Inc/osal_platform.h)(0x69D9B63B)
-I (../Drivers/CMSIS/Include/cmsis_armcc.h)(0x698F4032)
-I (..\Middleware\osal\system\Src\../Inc/osal_queue.h)(0x69D9458D)
-I (..\Middleware\osal\system\Src\../Inc/osal_event.h)(0x69DA7D06)
-I (..\Middleware\osal\system\Src\../Inc/osal_mutex.h)(0x69DA7D06)
-I (../Middleware/osal/components/periph/usart/Inc/periph_uart.h)(0x69D9B63B)
-I (D:\APP\Keil5\ARM\ARMCC\include\stdio.h)(0x60252374)
-I (../Middleware/osal/components/periph/flash/Inc/periph_flash.h)(0x69D9B63B)
-I (../Middleware/osal/platform/example/stm32f4/osal_platform_stm32f4.h)(0x69D9B730)
+I (../Middleware/osal/platform/example/stm32f4/osal_platform_stm32f4.h)(0x69DB10D3)
 I (../Core/Inc/main.h)(0x69C91308)
 I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h)(0x698F4031)
 I (../Core/Inc/stm32f4xx_hal_conf.h)(0x69D27972)
@@ -1039,24 +930,23 @@ I (../Middleware/osal/components/RTT/SEGGER_RTT_FORMATTER.h)(0x69D9458D)
 I (../Core/Inc/gpio.h)(0x69C90C17)
 I (../Core/Inc/usart.h)(0x69C90C18)
 I (D:\APP\Keil5\ARM\ARMCC\include\string.h)(0x6025237E)
-F (..\Middleware\osal\system\Src\osal_platform.c)(0x69D9B3BE)(--c99 -c --cpu Cortex-M4.fp.sp -D__MICROLIB -g -O3 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I ../Drivers/CMSIS/Include -I ../middleware/osal/Inc -I ../Middleware/osal/system/Inc -I ../Middleware/osal/components/periph/usart/Inc -I ../Middleware/osal/components/periph/flash/Inc -I ../Middleware/osal/platform -I ../Middleware/osal/platform/example/stm32f4 -I ../Middleware/osal/components/RTT-I.\RTE\_rivers_osal-ID:\APP\Keil5\ARM\PACK\ARM\CMSIS\6.1.0\CMSIS\Core\Include-ID:\APP\Keil5\ARM\PACK\Keil\STM32F4xx_DFP\2.17.1\Drivers\CMSIS\Device\ST\STM32F4xx\Include-D__UVISION_VERSION="543" -DSTM32F407xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F407xx-o rivers_osal\osal_platform.o --omf_browse rivers_osal\osal_platform.crf --depend rivers_osal\osal_platform.d)
-I (..\Middleware\osal\system\Src\../Inc/osal_platform.h)(0x69D9B63B)
+F (..\Middleware\osal\system\Src\osal_cortexm.c)(0x69EAEA03)(--c99 -c --cpu Cortex-M4.fp.sp -D__MICROLIB -g -O3 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I ../Drivers/CMSIS/Include -I ../middleware/osal/Inc -I ../Middleware/osal/system/Inc -I ../Middleware/osal/components/periph/usart/Inc -I ../Middleware/osal/components/periph/flash/Inc -I ../Middleware/osal/platform -I ../Middleware/osal/platform/example/stm32f4 -I ../Middleware/osal/components/RTT-I.\RTE\_rivers_osal-ID:\APP\Keil5\ARM\PACK\ARM\CMSIS\6.1.0\CMSIS\Core\Include-ID:\APP\Keil5\ARM\PACK\Keil\STM32F4xx_DFP\2.17.1\Drivers\CMSIS\Device\ST\STM32F4xx\Include-D__UVISION_VERSION="543" -DSTM32F407xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F407xx-o rivers_osal\osal_cortexm.o --omf_browse rivers_osal\osal_cortexm.crf --depend rivers_osal\osal_cortexm.d)
+I (..\Middleware\osal\system\Src\../Inc/osal_cortexm.h)(0x69EAE64A)
+I (..\Middleware\osal\system\Src\../Inc/osal_config.h)(0x69EB4338)
 I (D:\APP\Keil5\ARM\ARMCC\include\stdbool.h)(0x6025237C)
 I (D:\APP\Keil5\ARM\ARMCC\include\stdint.h)(0x6025237E)
 I (../Drivers/CMSIS/Include/cmsis_armcc.h)(0x698F4032)
-I (..\Middleware\osal\system\Src\../Inc/osal.h)(0x69D9458D)
+I (..\Middleware\osal\system\Src\../Inc/osal.h)(0x69EC48D2)
 I (D:\APP\Keil5\ARM\ARMCC\include\stddef.h)(0x6025237E)
-I (..\Middleware\osal\system\Src\../Inc/osal_task.h)(0x69DA7D06)
-I (..\Middleware\osal\system\Src\../Inc/osal_mem.h)(0x69D9B63B)
-I (..\Middleware\osal\system\Src\../Inc/osal_irq.h)(0x69D9B63B)
-I (..\Middleware\osal\system\Src\../Inc/osal_timer.h)(0x69D9458D)
-I (..\Middleware\osal\system\Src\../Inc/osal_queue.h)(0x69D9458D)
-I (..\Middleware\osal\system\Src\../Inc/osal_event.h)(0x69DA7D06)
-I (..\Middleware\osal\system\Src\../Inc/osal_mutex.h)(0x69DA7D06)
+I (..\Middleware\osal\system\Src\../Inc/osal_task.h)(0x69EC49FE)
+I (..\Middleware\osal\system\Src\../Inc/osal_mem.h)(0x69EC4A43)
+I (..\Middleware\osal\system\Src\../Inc/osal_irq.h)(0x69EAFA29)
+I (..\Middleware\osal\system\Src\../Inc/osal_timer.h)(0x69EC8F5B)
+I (..\Middleware\osal\system\Src\../Inc/osal_queue.h)(0x69EAFA29)
 I (../Middleware/osal/components/periph/usart/Inc/periph_uart.h)(0x69D9B63B)
 I (D:\APP\Keil5\ARM\ARMCC\include\stdio.h)(0x60252374)
 I (../Middleware/osal/components/periph/flash/Inc/periph_flash.h)(0x69D9B63B)
-I (../Middleware/osal/platform/example/stm32f4/osal_platform_stm32f4.h)(0x69D9B730)
+I (../Middleware/osal/platform/example/stm32f4/osal_platform_stm32f4.h)(0x69DB10D3)
 I (../Core/Inc/main.h)(0x69C91308)
 I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h)(0x698F4031)
 I (../Core/Inc/stm32f4xx_hal_conf.h)(0x69D27972)
@@ -1092,24 +982,23 @@ I (D:\APP\Keil5\ARM\ARMCC\include\stdarg.h)(0x60252376)
 I (../Middleware/osal/components/RTT/SEGGER_RTT_FORMATTER.h)(0x69D9458D)
 I (../Core/Inc/gpio.h)(0x69C90C17)
 I (../Core/Inc/usart.h)(0x69C90C18)
-F (..\Middleware\osal\system\Src\osal_task.c)(0x69DA7D06)(--c99 -c --cpu Cortex-M4.fp.sp -D__MICROLIB -g -O3 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I ../Drivers/CMSIS/Include -I ../middleware/osal/Inc -I ../Middleware/osal/system/Inc -I ../Middleware/osal/components/periph/usart/Inc -I ../Middleware/osal/components/periph/flash/Inc -I ../Middleware/osal/platform -I ../Middleware/osal/platform/example/stm32f4 -I ../Middleware/osal/components/RTT-I.\RTE\_rivers_osal-ID:\APP\Keil5\ARM\PACK\ARM\CMSIS\6.1.0\CMSIS\Core\Include-ID:\APP\Keil5\ARM\PACK\Keil\STM32F4xx_DFP\2.17.1\Drivers\CMSIS\Device\ST\STM32F4xx\Include-D__UVISION_VERSION="543" -DSTM32F407xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F407xx-o rivers_osal\osal_task.o --omf_browse rivers_osal\osal_task.crf --depend rivers_osal\osal_task.d)
-I (..\Middleware\osal\system\Src\../Inc/osal_task.h)(0x69DA7D06)
+F (..\Middleware\osal\system\Src\osal_task.c)(0x69EC49FE)(--c99 -c --cpu Cortex-M4.fp.sp -D__MICROLIB -g -O3 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I ../Drivers/CMSIS/Include -I ../middleware/osal/Inc -I ../Middleware/osal/system/Inc -I ../Middleware/osal/components/periph/usart/Inc -I ../Middleware/osal/components/periph/flash/Inc -I ../Middleware/osal/platform -I ../Middleware/osal/platform/example/stm32f4 -I ../Middleware/osal/components/RTT-I.\RTE\_rivers_osal-ID:\APP\Keil5\ARM\PACK\ARM\CMSIS\6.1.0\CMSIS\Core\Include-ID:\APP\Keil5\ARM\PACK\Keil\STM32F4xx_DFP\2.17.1\Drivers\CMSIS\Device\ST\STM32F4xx\Include-D__UVISION_VERSION="543" -DSTM32F407xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F407xx-o rivers_osal\osal_task.o --omf_browse rivers_osal\osal_task.crf --depend rivers_osal\osal_task.d)
+I (..\Middleware\osal\system\Src\../Inc/osal_task.h)(0x69EC49FE)
 I (D:\APP\Keil5\ARM\ARMCC\include\stdbool.h)(0x6025237C)
-I (..\Middleware\osal\system\Src\../Inc/osal.h)(0x69D9458D)
-I (D:\APP\Keil5\ARM\ARMCC\include\stdint.h)(0x6025237E)
+I (..\Middleware\osal\system\Src\../Inc/osal.h)(0x69EC48D2)
+I (..\Middleware\osal\system\Src\../Inc/osal_config.h)(0x69EB4338)
 I (D:\APP\Keil5\ARM\ARMCC\include\stddef.h)(0x6025237E)
-I (..\Middleware\osal\system\Src\../Inc/osal_mem.h)(0x69D9B63B)
-I (..\Middleware\osal\system\Src\../Inc/osal_irq.h)(0x69D9B63B)
-I (..\Middleware\osal\system\Src\../Inc/osal_timer.h)(0x69D9458D)
-I (..\Middleware\osal\system\Src\../Inc/osal_platform.h)(0x69D9B63B)
+I (D:\APP\Keil5\ARM\ARMCC\include\stdint.h)(0x6025237E)
+I (..\Middleware\osal\system\Src\../Inc/osal_mem.h)(0x69EC4A43)
+I (..\Middleware\osal\system\Src\../Inc/osal_irq.h)(0x69EAFA29)
+I (..\Middleware\osal\system\Src\../Inc/osal_timer.h)(0x69EC8F5B)
+I (..\Middleware\osal\system\Src\../Inc/osal_cortexm.h)(0x69EAE64A)
 I (../Drivers/CMSIS/Include/cmsis_armcc.h)(0x698F4032)
-I (..\Middleware\osal\system\Src\../Inc/osal_queue.h)(0x69D9458D)
-I (..\Middleware\osal\system\Src\../Inc/osal_event.h)(0x69DA7D06)
-I (..\Middleware\osal\system\Src\../Inc/osal_mutex.h)(0x69DA7D06)
+I (..\Middleware\osal\system\Src\../Inc/osal_queue.h)(0x69EAFA29)
 I (../Middleware/osal/components/periph/usart/Inc/periph_uart.h)(0x69D9B63B)
 I (D:\APP\Keil5\ARM\ARMCC\include\stdio.h)(0x60252374)
 I (../Middleware/osal/components/periph/flash/Inc/periph_flash.h)(0x69D9B63B)
-I (../Middleware/osal/platform/example/stm32f4/osal_platform_stm32f4.h)(0x69D9B730)
+I (../Middleware/osal/platform/example/stm32f4/osal_platform_stm32f4.h)(0x69DB10D3)
 I (../Core/Inc/main.h)(0x69C91308)
 I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h)(0x698F4031)
 I (../Core/Inc/stm32f4xx_hal_conf.h)(0x69D27972)
@@ -1145,24 +1034,23 @@ I (D:\APP\Keil5\ARM\ARMCC\include\stdarg.h)(0x60252376)
 I (../Middleware/osal/components/RTT/SEGGER_RTT_FORMATTER.h)(0x69D9458D)
 I (../Core/Inc/gpio.h)(0x69C90C17)
 I (../Core/Inc/usart.h)(0x69C90C18)
-F (..\Middleware\osal\system\Src\osal_timer.c)(0x69D9489C)(--c99 -c --cpu Cortex-M4.fp.sp -D__MICROLIB -g -O3 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I ../Drivers/CMSIS/Include -I ../middleware/osal/Inc -I ../Middleware/osal/system/Inc -I ../Middleware/osal/components/periph/usart/Inc -I ../Middleware/osal/components/periph/flash/Inc -I ../Middleware/osal/platform -I ../Middleware/osal/platform/example/stm32f4 -I ../Middleware/osal/components/RTT-I.\RTE\_rivers_osal-ID:\APP\Keil5\ARM\PACK\ARM\CMSIS\6.1.0\CMSIS\Core\Include-ID:\APP\Keil5\ARM\PACK\Keil\STM32F4xx_DFP\2.17.1\Drivers\CMSIS\Device\ST\STM32F4xx\Include-D__UVISION_VERSION="543" -DSTM32F407xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F407xx-o rivers_osal\osal_timer.o --omf_browse rivers_osal\osal_timer.crf --depend rivers_osal\osal_timer.d)
-I (..\Middleware\osal\system\Src\../Inc/osal_timer.h)(0x69D9458D)
+F (..\Middleware\osal\system\Src\osal_timer.c)(0x69EC8F5B)(--c99 -c --cpu Cortex-M4.fp.sp -D__MICROLIB -g -O3 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I ../Drivers/CMSIS/Include -I ../middleware/osal/Inc -I ../Middleware/osal/system/Inc -I ../Middleware/osal/components/periph/usart/Inc -I ../Middleware/osal/components/periph/flash/Inc -I ../Middleware/osal/platform -I ../Middleware/osal/platform/example/stm32f4 -I ../Middleware/osal/components/RTT-I.\RTE\_rivers_osal-ID:\APP\Keil5\ARM\PACK\ARM\CMSIS\6.1.0\CMSIS\Core\Include-ID:\APP\Keil5\ARM\PACK\Keil\STM32F4xx_DFP\2.17.1\Drivers\CMSIS\Device\ST\STM32F4xx\Include-D__UVISION_VERSION="543" -DSTM32F407xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F407xx-o rivers_osal\osal_timer.o --omf_browse rivers_osal\osal_timer.crf --depend rivers_osal\osal_timer.d)
+I (..\Middleware\osal\system\Src\../Inc/osal_timer.h)(0x69EC8F5B)
 I (D:\APP\Keil5\ARM\ARMCC\include\stdint.h)(0x6025237E)
 I (D:\APP\Keil5\ARM\ARMCC\include\stdbool.h)(0x6025237C)
-I (..\Middleware\osal\system\Src\../Inc/osal.h)(0x69D9458D)
+I (..\Middleware\osal\system\Src\../Inc/osal.h)(0x69EC48D2)
+I (..\Middleware\osal\system\Src\../Inc/osal_config.h)(0x69EB4338)
 I (D:\APP\Keil5\ARM\ARMCC\include\stddef.h)(0x6025237E)
-I (..\Middleware\osal\system\Src\../Inc/osal_task.h)(0x69DA7D06)
-I (..\Middleware\osal\system\Src\../Inc/osal_mem.h)(0x69D9B63B)
-I (..\Middleware\osal\system\Src\../Inc/osal_irq.h)(0x69D9B63B)
-I (..\Middleware\osal\system\Src\../Inc/osal_platform.h)(0x69D9B63B)
+I (..\Middleware\osal\system\Src\../Inc/osal_task.h)(0x69EC49FE)
+I (..\Middleware\osal\system\Src\../Inc/osal_mem.h)(0x69EC4A43)
+I (..\Middleware\osal\system\Src\../Inc/osal_irq.h)(0x69EAFA29)
+I (..\Middleware\osal\system\Src\../Inc/osal_cortexm.h)(0x69EAE64A)
 I (../Drivers/CMSIS/Include/cmsis_armcc.h)(0x698F4032)
-I (..\Middleware\osal\system\Src\../Inc/osal_queue.h)(0x69D9458D)
-I (..\Middleware\osal\system\Src\../Inc/osal_event.h)(0x69DA7D06)
-I (..\Middleware\osal\system\Src\../Inc/osal_mutex.h)(0x69DA7D06)
+I (..\Middleware\osal\system\Src\../Inc/osal_queue.h)(0x69EAFA29)
 I (../Middleware/osal/components/periph/usart/Inc/periph_uart.h)(0x69D9B63B)
 I (D:\APP\Keil5\ARM\ARMCC\include\stdio.h)(0x60252374)
 I (../Middleware/osal/components/periph/flash/Inc/periph_flash.h)(0x69D9B63B)
-I (../Middleware/osal/platform/example/stm32f4/osal_platform_stm32f4.h)(0x69D9B730)
+I (../Middleware/osal/platform/example/stm32f4/osal_platform_stm32f4.h)(0x69DB10D3)
 I (../Core/Inc/main.h)(0x69C91308)
 I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h)(0x698F4031)
 I (../Core/Inc/stm32f4xx_hal_conf.h)(0x69D27972)
@@ -1198,24 +1086,23 @@ I (D:\APP\Keil5\ARM\ARMCC\include\stdarg.h)(0x60252376)
 I (../Middleware/osal/components/RTT/SEGGER_RTT_FORMATTER.h)(0x69D9458D)
 I (../Core/Inc/gpio.h)(0x69C90C17)
 I (../Core/Inc/usart.h)(0x69C90C18)
-F (..\Middleware\osal\components\periph\usart\Src\periph_uart.c)(0x69D9B4D9)(--c99 -c --cpu Cortex-M4.fp.sp -D__MICROLIB -g -O3 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I ../Drivers/CMSIS/Include -I ../middleware/osal/Inc -I ../Middleware/osal/system/Inc -I ../Middleware/osal/components/periph/usart/Inc -I ../Middleware/osal/components/periph/flash/Inc -I ../Middleware/osal/platform -I ../Middleware/osal/platform/example/stm32f4 -I ../Middleware/osal/components/RTT-I.\RTE\_rivers_osal-ID:\APP\Keil5\ARM\PACK\ARM\CMSIS\6.1.0\CMSIS\Core\Include-ID:\APP\Keil5\ARM\PACK\Keil\STM32F4xx_DFP\2.17.1\Drivers\CMSIS\Device\ST\STM32F4xx\Include-D__UVISION_VERSION="543" -DSTM32F407xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F407xx-o rivers_osal\periph_uart.o --omf_browse rivers_osal\periph_uart.crf --depend rivers_osal\periph_uart.d)
-I (../Middleware/osal/system/Inc/osal.h)(0x69D9458D)
-I (D:\APP\Keil5\ARM\ARMCC\include\stdint.h)(0x6025237E)
+F (..\Middleware\osal\components\periph\usart\Src\periph_uart.c)(0x69DB109F)(--c99 -c --cpu Cortex-M4.fp.sp -D__MICROLIB -g -O3 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I ../Drivers/CMSIS/Include -I ../middleware/osal/Inc -I ../Middleware/osal/system/Inc -I ../Middleware/osal/components/periph/usart/Inc -I ../Middleware/osal/components/periph/flash/Inc -I ../Middleware/osal/platform -I ../Middleware/osal/platform/example/stm32f4 -I ../Middleware/osal/components/RTT-I.\RTE\_rivers_osal-ID:\APP\Keil5\ARM\PACK\ARM\CMSIS\6.1.0\CMSIS\Core\Include-ID:\APP\Keil5\ARM\PACK\Keil\STM32F4xx_DFP\2.17.1\Drivers\CMSIS\Device\ST\STM32F4xx\Include-D__UVISION_VERSION="543" -DSTM32F407xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F407xx-o rivers_osal\periph_uart.o --omf_browse rivers_osal\periph_uart.crf --depend rivers_osal\periph_uart.d)
+I (../Middleware/osal/system/Inc/osal.h)(0x69EC48D2)
+I (../Middleware/osal/system/Inc/osal_config.h)(0x69EB4338)
 I (D:\APP\Keil5\ARM\ARMCC\include\stddef.h)(0x6025237E)
-I (../Middleware/osal/system/Inc/osal_task.h)(0x69DA7D06)
+I (D:\APP\Keil5\ARM\ARMCC\include\stdint.h)(0x6025237E)
+I (../Middleware/osal/system/Inc/osal_task.h)(0x69EC49FE)
 I (D:\APP\Keil5\ARM\ARMCC\include\stdbool.h)(0x6025237C)
-I (../Middleware/osal/system/Inc/osal_mem.h)(0x69D9B63B)
-I (../Middleware/osal/system/Inc/osal_irq.h)(0x69D9B63B)
-I (../Middleware/osal/system/Inc/osal_timer.h)(0x69D9458D)
-I (../Middleware/osal/system/Inc/osal_platform.h)(0x69D9B63B)
+I (../Middleware/osal/system/Inc/osal_mem.h)(0x69EC4A43)
+I (../Middleware/osal/system/Inc/osal_irq.h)(0x69EAFA29)
+I (../Middleware/osal/system/Inc/osal_timer.h)(0x69EC8F5B)
+I (../Middleware/osal/system/Inc/osal_cortexm.h)(0x69EAE64A)
 I (../Drivers/CMSIS/Include/cmsis_armcc.h)(0x698F4032)
-I (../Middleware/osal/system/Inc/osal_queue.h)(0x69D9458D)
-I (../Middleware/osal/system/Inc/osal_event.h)(0x69DA7D06)
-I (../Middleware/osal/system/Inc/osal_mutex.h)(0x69DA7D06)
+I (../Middleware/osal/system/Inc/osal_queue.h)(0x69EAFA29)
 I (../Middleware/osal/components/periph/usart/Inc/periph_uart.h)(0x69D9B63B)
 I (D:\APP\Keil5\ARM\ARMCC\include\stdio.h)(0x60252374)
 I (../Middleware/osal/components/periph/flash/Inc/periph_flash.h)(0x69D9B63B)
-I (../Middleware/osal/platform/example/stm32f4/osal_platform_stm32f4.h)(0x69D9B730)
+I (../Middleware/osal/platform/example/stm32f4/osal_platform_stm32f4.h)(0x69DB10D3)
 I (../Core/Inc/main.h)(0x69C91308)
 I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h)(0x698F4031)
 I (../Core/Inc/stm32f4xx_hal_conf.h)(0x69D27972)
@@ -1251,24 +1138,23 @@ I (D:\APP\Keil5\ARM\ARMCC\include\stdarg.h)(0x60252376)
 I (../Middleware/osal/components/RTT/SEGGER_RTT_FORMATTER.h)(0x69D9458D)
 I (../Core/Inc/gpio.h)(0x69C90C17)
 I (../Core/Inc/usart.h)(0x69C90C18)
-F (..\Middleware\osal\components\periph\flash\Src\periph_flash.c)(0x69D9B4D9)(--c99 -c --cpu Cortex-M4.fp.sp -D__MICROLIB -g -O3 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I ../Drivers/CMSIS/Include -I ../middleware/osal/Inc -I ../Middleware/osal/system/Inc -I ../Middleware/osal/components/periph/usart/Inc -I ../Middleware/osal/components/periph/flash/Inc -I ../Middleware/osal/platform -I ../Middleware/osal/platform/example/stm32f4 -I ../Middleware/osal/components/RTT-I.\RTE\_rivers_osal-ID:\APP\Keil5\ARM\PACK\ARM\CMSIS\6.1.0\CMSIS\Core\Include-ID:\APP\Keil5\ARM\PACK\Keil\STM32F4xx_DFP\2.17.1\Drivers\CMSIS\Device\ST\STM32F4xx\Include-D__UVISION_VERSION="543" -DSTM32F407xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F407xx-o rivers_osal\periph_flash.o --omf_browse rivers_osal\periph_flash.crf --depend rivers_osal\periph_flash.d)
-I (../Middleware/osal/system/Inc/osal.h)(0x69D9458D)
-I (D:\APP\Keil5\ARM\ARMCC\include\stdint.h)(0x6025237E)
+F (..\Middleware\osal\components\periph\flash\Src\periph_flash.c)(0x69DB109F)(--c99 -c --cpu Cortex-M4.fp.sp -D__MICROLIB -g -O3 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I ../Drivers/CMSIS/Include -I ../middleware/osal/Inc -I ../Middleware/osal/system/Inc -I ../Middleware/osal/components/periph/usart/Inc -I ../Middleware/osal/components/periph/flash/Inc -I ../Middleware/osal/platform -I ../Middleware/osal/platform/example/stm32f4 -I ../Middleware/osal/components/RTT-I.\RTE\_rivers_osal-ID:\APP\Keil5\ARM\PACK\ARM\CMSIS\6.1.0\CMSIS\Core\Include-ID:\APP\Keil5\ARM\PACK\Keil\STM32F4xx_DFP\2.17.1\Drivers\CMSIS\Device\ST\STM32F4xx\Include-D__UVISION_VERSION="543" -DSTM32F407xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F407xx-o rivers_osal\periph_flash.o --omf_browse rivers_osal\periph_flash.crf --depend rivers_osal\periph_flash.d)
+I (../Middleware/osal/system/Inc/osal.h)(0x69EC48D2)
+I (../Middleware/osal/system/Inc/osal_config.h)(0x69EB4338)
 I (D:\APP\Keil5\ARM\ARMCC\include\stddef.h)(0x6025237E)
-I (../Middleware/osal/system/Inc/osal_task.h)(0x69DA7D06)
+I (D:\APP\Keil5\ARM\ARMCC\include\stdint.h)(0x6025237E)
+I (../Middleware/osal/system/Inc/osal_task.h)(0x69EC49FE)
 I (D:\APP\Keil5\ARM\ARMCC\include\stdbool.h)(0x6025237C)
-I (../Middleware/osal/system/Inc/osal_mem.h)(0x69D9B63B)
-I (../Middleware/osal/system/Inc/osal_irq.h)(0x69D9B63B)
-I (../Middleware/osal/system/Inc/osal_timer.h)(0x69D9458D)
-I (../Middleware/osal/system/Inc/osal_platform.h)(0x69D9B63B)
+I (../Middleware/osal/system/Inc/osal_mem.h)(0x69EC4A43)
+I (../Middleware/osal/system/Inc/osal_irq.h)(0x69EAFA29)
+I (../Middleware/osal/system/Inc/osal_timer.h)(0x69EC8F5B)
+I (../Middleware/osal/system/Inc/osal_cortexm.h)(0x69EAE64A)
 I (../Drivers/CMSIS/Include/cmsis_armcc.h)(0x698F4032)
-I (../Middleware/osal/system/Inc/osal_queue.h)(0x69D9458D)
-I (../Middleware/osal/system/Inc/osal_event.h)(0x69DA7D06)
-I (../Middleware/osal/system/Inc/osal_mutex.h)(0x69DA7D06)
+I (../Middleware/osal/system/Inc/osal_queue.h)(0x69EAFA29)
 I (../Middleware/osal/components/periph/usart/Inc/periph_uart.h)(0x69D9B63B)
 I (D:\APP\Keil5\ARM\ARMCC\include\stdio.h)(0x60252374)
 I (../Middleware/osal/components/periph/flash/Inc/periph_flash.h)(0x69D9B63B)
-I (../Middleware/osal/platform/example/stm32f4/osal_platform_stm32f4.h)(0x69D9B730)
+I (../Middleware/osal/platform/example/stm32f4/osal_platform_stm32f4.h)(0x69DB10D3)
 I (../Core/Inc/main.h)(0x69C91308)
 I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h)(0x698F4031)
 I (../Core/Inc/stm32f4xx_hal_conf.h)(0x69D27972)
@@ -1319,8 +1205,8 @@ I (..\Middleware\osal\components\RTT\SEGGER_RTT_Conf.h)(0x69D9458D)
 I (D:\APP\Keil5\ARM\ARMCC\include\stdlib.h)(0x60252374)
 I (D:\APP\Keil5\ARM\ARMCC\include\stdarg.h)(0x60252376)
 I (D:\APP\Keil5\ARM\ARMCC\include\stdint.h)(0x6025237E)
-F (..\Middleware\osal\platform\example\stm32f4\osal_platform_stm32f4.c)(0x69D9B4D9)(--c99 -c --cpu Cortex-M4.fp.sp -D__MICROLIB -g -O3 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I ../Drivers/CMSIS/Include -I ../middleware/osal/Inc -I ../Middleware/osal/system/Inc -I ../Middleware/osal/components/periph/usart/Inc -I ../Middleware/osal/components/periph/flash/Inc -I ../Middleware/osal/platform -I ../Middleware/osal/platform/example/stm32f4 -I ../Middleware/osal/components/RTT-I.\RTE\_rivers_osal-ID:\APP\Keil5\ARM\PACK\ARM\CMSIS\6.1.0\CMSIS\Core\Include-ID:\APP\Keil5\ARM\PACK\Keil\STM32F4xx_DFP\2.17.1\Drivers\CMSIS\Device\ST\STM32F4xx\Include-D__UVISION_VERSION="543" -DSTM32F407xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F407xx-o rivers_osal\osal_platform_stm32f4.o --omf_browse rivers_osal\osal_platform_stm32f4.crf --depend rivers_osal\osal_platform_stm32f4.d)
-I (..\Middleware\osal\platform\example\stm32f4\osal_platform_stm32f4.h)(0x69D9B730)
+F (..\Middleware\osal\platform\example\stm32f4\osal_platform_stm32f4.c)(0x69DB109F)(--c99 -c --cpu Cortex-M4.fp.sp -D__MICROLIB -g -O3 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I ../Drivers/CMSIS/Include -I ../middleware/osal/Inc -I ../Middleware/osal/system/Inc -I ../Middleware/osal/components/periph/usart/Inc -I ../Middleware/osal/components/periph/flash/Inc -I ../Middleware/osal/platform -I ../Middleware/osal/platform/example/stm32f4 -I ../Middleware/osal/components/RTT-I.\RTE\_rivers_osal-ID:\APP\Keil5\ARM\PACK\ARM\CMSIS\6.1.0\CMSIS\Core\Include-ID:\APP\Keil5\ARM\PACK\Keil\STM32F4xx_DFP\2.17.1\Drivers\CMSIS\Device\ST\STM32F4xx\Include-D__UVISION_VERSION="543" -DSTM32F407xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F407xx-o rivers_osal\osal_platform_stm32f4.o --omf_browse rivers_osal\osal_platform_stm32f4.crf --depend rivers_osal\osal_platform_stm32f4.d)
+I (..\Middleware\osal\platform\example\stm32f4\osal_platform_stm32f4.h)(0x69DB10D3)
 I (D:\APP\Keil5\ARM\ARMCC\include\stdbool.h)(0x6025237C)
 I (D:\APP\Keil5\ARM\ARMCC\include\stdint.h)(0x6025237E)
 I (../Core/Inc/main.h)(0x69C91308)
@@ -1360,18 +1246,17 @@ I (D:\APP\Keil5\ARM\ARMCC\include\stdarg.h)(0x60252376)
 I (../Middleware/osal/components/RTT/SEGGER_RTT_FORMATTER.h)(0x69D9458D)
 I (../Core/Inc/gpio.h)(0x69C90C17)
 I (../Core/Inc/usart.h)(0x69C90C18)
-I (../Middleware/osal/system/Inc/osal.h)(0x69D9458D)
-I (../Middleware/osal/system/Inc/osal_task.h)(0x69DA7D06)
-I (../Middleware/osal/system/Inc/osal_mem.h)(0x69D9B63B)
-I (../Middleware/osal/system/Inc/osal_irq.h)(0x69D9B63B)
-I (../Middleware/osal/system/Inc/osal_timer.h)(0x69D9458D)
-I (../Middleware/osal/system/Inc/osal_platform.h)(0x69D9B63B)
-I (../Middleware/osal/system/Inc/osal_queue.h)(0x69D9458D)
-I (../Middleware/osal/system/Inc/osal_event.h)(0x69DA7D06)
-I (../Middleware/osal/system/Inc/osal_mutex.h)(0x69DA7D06)
+I (../Middleware/osal/system/Inc/osal.h)(0x69EC48D2)
+I (../Middleware/osal/system/Inc/osal_config.h)(0x69EB4338)
+I (../Middleware/osal/system/Inc/osal_task.h)(0x69EC49FE)
+I (../Middleware/osal/system/Inc/osal_mem.h)(0x69EC4A43)
+I (../Middleware/osal/system/Inc/osal_irq.h)(0x69EAFA29)
+I (../Middleware/osal/system/Inc/osal_timer.h)(0x69EC8F5B)
+I (../Middleware/osal/system/Inc/osal_cortexm.h)(0x69EAE64A)
+I (../Middleware/osal/system/Inc/osal_queue.h)(0x69EAFA29)
 I (../Middleware/osal/components/periph/usart/Inc/periph_uart.h)(0x69D9B63B)
 I (D:\APP\Keil5\ARM\ARMCC\include\stdio.h)(0x60252374)
 I (../Middleware/osal/components/periph/flash/Inc/periph_flash.h)(0x69D9B63B)
-I (../Middleware/osal/platform/example/stm32f4/osal_platform_stm32f4.h)(0x69D9B730)
+I (../Middleware/osal/platform/example/stm32f4/osal_platform_stm32f4.h)(0x69DB10D3)
 I (D:\APP\Keil5\ARM\ARMCC\include\string.h)(0x6025237E)
-F (..\Middleware\osal\platform\example\stm32f4\osal_platform_stm32f4.h)(0x69D9B730)()
+F (..\Middleware\osal\platform\example\stm32f4\osal_platform_stm32f4.h)(0x69DB10D3)()

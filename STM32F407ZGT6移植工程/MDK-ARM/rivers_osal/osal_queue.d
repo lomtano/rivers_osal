@@ -1,6 +1,8 @@
 rivers_osal\osal_queue.o: ..\Middleware\osal\system\Src\osal_queue.c
-rivers_osal\osal_queue.o: ..\Middleware\osal\system\Src\../Inc/osal.h
+rivers_osal\osal_queue.o: ..\Middleware\osal\system\Src\../Inc/osal_queue.h
 rivers_osal\osal_queue.o: D:\APP\Keil5\ARM\ARMCC\Bin\..\include\stdint.h
+rivers_osal\osal_queue.o: ..\Middleware\osal\system\Src\../Inc/osal.h
+rivers_osal\osal_queue.o: ..\Middleware\osal\system\Src\../Inc/osal_config.h
 rivers_osal\osal_queue.o: D:\APP\Keil5\ARM\ARMCC\Bin\..\include\stddef.h
 rivers_osal\osal_queue.o: ..\Middleware\osal\system\Src\../Inc/osal_task.h
 rivers_osal\osal_queue.o: D:\APP\Keil5\ARM\ARMCC\Bin\..\include\stdbool.h
@@ -8,11 +10,9 @@ rivers_osal\osal_queue.o: ..\Middleware\osal\system\Src\../Inc/osal.h
 rivers_osal\osal_queue.o: ..\Middleware\osal\system\Src\../Inc/osal_mem.h
 rivers_osal\osal_queue.o: ..\Middleware\osal\system\Src\../Inc/osal_irq.h
 rivers_osal\osal_queue.o: ..\Middleware\osal\system\Src\../Inc/osal_timer.h
-rivers_osal\osal_queue.o: ..\Middleware\osal\system\Src\../Inc/osal_platform.h
+rivers_osal\osal_queue.o: ..\Middleware\osal\system\Src\../Inc/osal_cortexm.h
 rivers_osal\osal_queue.o: ../Drivers/CMSIS/Include/cmsis_armcc.h
 rivers_osal\osal_queue.o: ..\Middleware\osal\system\Src\../Inc/osal_queue.h
-rivers_osal\osal_queue.o: ..\Middleware\osal\system\Src\../Inc/osal_event.h
-rivers_osal\osal_queue.o: ..\Middleware\osal\system\Src\../Inc/osal_mutex.h
 rivers_osal\osal_queue.o: ../Middleware/osal/components/periph/usart/Inc/periph_uart.h
 rivers_osal\osal_queue.o: D:\APP\Keil5\ARM\ARMCC\Bin\..\include\stdio.h
 rivers_osal\osal_queue.o: ../Middleware/osal/components/periph/flash/Inc/periph_flash.h

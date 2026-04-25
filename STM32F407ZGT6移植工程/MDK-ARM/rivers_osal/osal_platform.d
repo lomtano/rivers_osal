@@ -1,5 +1,6 @@
 rivers_osal\osal_platform.o: ..\Middleware\osal\system\Src\osal_platform.c
 rivers_osal\osal_platform.o: ..\Middleware\osal\system\Src\../Inc/osal_platform.h
+rivers_osal\osal_platform.o: ..\Middleware\osal\system\Src\../Inc/osal_config.h
 rivers_osal\osal_platform.o: D:\APP\Keil5\ARM\ARMCC\Bin\..\include\stdbool.h
 rivers_osal\osal_platform.o: D:\APP\Keil5\ARM\ARMCC\Bin\..\include\stdint.h
 rivers_osal\osal_platform.o: ../Drivers/CMSIS/Include/cmsis_armcc.h
@@ -11,8 +12,6 @@ rivers_osal\osal_platform.o: ..\Middleware\osal\system\Src\../Inc/osal_mem.h
 rivers_osal\osal_platform.o: ..\Middleware\osal\system\Src\../Inc/osal_irq.h
 rivers_osal\osal_platform.o: ..\Middleware\osal\system\Src\../Inc/osal_timer.h
 rivers_osal\osal_platform.o: ..\Middleware\osal\system\Src\../Inc/osal_queue.h
-rivers_osal\osal_platform.o: ..\Middleware\osal\system\Src\../Inc/osal_event.h
-rivers_osal\osal_platform.o: ..\Middleware\osal\system\Src\../Inc/osal_mutex.h
 rivers_osal\osal_platform.o: ../Middleware/osal/components/periph/usart/Inc/periph_uart.h
 rivers_osal\osal_platform.o: D:\APP\Keil5\ARM\ARMCC\Bin\..\include\stdio.h
 rivers_osal\osal_platform.o: ../Middleware/osal/components/periph/flash/Inc/periph_flash.h
@@ -53,3 +52,4 @@ rivers_osal\osal_platform.o: D:\APP\Keil5\ARM\ARMCC\Bin\..\include\stdarg.h
 rivers_osal\osal_platform.o: ../Middleware/osal/components/RTT/SEGGER_RTT_FORMATTER.h
 rivers_osal\osal_platform.o: ../Core/Inc/gpio.h
 rivers_osal\osal_platform.o: ../Core/Inc/usart.h
+rivers_osal\osal_platform.o: ..\Middleware\osal\system\Src\osal_platform_profile_internal.h

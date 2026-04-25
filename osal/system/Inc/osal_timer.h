@@ -1,4 +1,4 @@
-#ifndef OSAL_TIMER_H
+﻿#ifndef OSAL_TIMER_H
 #define OSAL_TIMER_H
 
 #include <stdint.h>
@@ -138,3 +138,6 @@ void osal_timer_delete(int timer_id);
 #endif
 
 #endif /* OSAL_TIMER_H */
+
+
+

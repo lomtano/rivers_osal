@@ -41,15 +41,14 @@ rivers_osal\osal_platform_stm32f4.o: ../Middleware/osal/components/RTT/SEGGER_RT
 rivers_osal\osal_platform_stm32f4.o: ../Core/Inc/gpio.h
 rivers_osal\osal_platform_stm32f4.o: ../Core/Inc/usart.h
 rivers_osal\osal_platform_stm32f4.o: ../Middleware/osal/system/Inc/osal.h
+rivers_osal\osal_platform_stm32f4.o: ../Middleware/osal/system/Inc/osal_config.h
 rivers_osal\osal_platform_stm32f4.o: ../Middleware/osal/system/Inc/osal_task.h
 rivers_osal\osal_platform_stm32f4.o: ../Middleware/osal/system/Inc/osal.h
 rivers_osal\osal_platform_stm32f4.o: ../Middleware/osal/system/Inc/osal_mem.h
 rivers_osal\osal_platform_stm32f4.o: ../Middleware/osal/system/Inc/osal_irq.h
 rivers_osal\osal_platform_stm32f4.o: ../Middleware/osal/system/Inc/osal_timer.h
-rivers_osal\osal_platform_stm32f4.o: ../Middleware/osal/system/Inc/osal_platform.h
+rivers_osal\osal_platform_stm32f4.o: ../Middleware/osal/system/Inc/osal_cortexm.h
 rivers_osal\osal_platform_stm32f4.o: ../Middleware/osal/system/Inc/osal_queue.h
-rivers_osal\osal_platform_stm32f4.o: ../Middleware/osal/system/Inc/osal_event.h
-rivers_osal\osal_platform_stm32f4.o: ../Middleware/osal/system/Inc/osal_mutex.h
 rivers_osal\osal_platform_stm32f4.o: ../Middleware/osal/components/periph/usart/Inc/periph_uart.h
 rivers_osal\osal_platform_stm32f4.o: D:\APP\Keil5\ARM\ARMCC\Bin\..\include\stdio.h
 rivers_osal\osal_platform_stm32f4.o: ../Middleware/osal/components/periph/flash/Inc/periph_flash.h
