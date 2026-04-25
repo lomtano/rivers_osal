@@ -397,6 +397,78 @@ bool osal_timer_start(int timer_id) {
     return true;
 }
 
+/* 函数说明：动态修改定时器周期；运行中的定时器会从当前时刻重新开始计算下一次到期。 */
+bool osal_timer_set_period(int timer_id, uint32_t period_us) {
+    uint32_t irq_state;
+    uint64_t now_us;
+    struct osal_timer_entry *entry;
+
+    if (osal_irq_is_in_isr()) {
+        osal_timer_report("set_period is not allowed in ISR context");
+        return false;
+    }
+    if (!osal_timer_is_valid_id(timer_id)) {
+        osal_timer_report("set_period called with invalid timer id");
+        return false;
+    }
+
+    irq_state = osal_internal_critical_enter();
+    entry = s_timers[timer_id];
+    if ((entry == NULL) || (entry->cb == NULL)) {
+        osal_internal_critical_exit(irq_state);
+        osal_timer_report("set_period called on inactive timer id");
+        return false;
+    }
+
+    entry->period_us = period_us;
+    if (entry->active) {
+        /*
+         * 动态改周期时，不沿用旧 expiry_us。
+         * 直接从当前时间重新计算下一次到期点，调用方看到的是“新周期立即生效”。
+         */
+        now_us = osal_timer_get_uptime_us64();
+        entry->expiry_us = now_us + (uint64_t)period_us;
+        osal_timer_refresh_next_expiry();
+    }
+    osal_internal_critical_exit(irq_state);
+    return true;
+}
+
+/* 函数说明：动态修改正在运行的定时器剩余计数值。 */
+bool osal_timer_set_remaining(int timer_id, uint32_t remaining_us) {
+    uint32_t irq_state;
+    uint64_t now_us;
+    struct osal_timer_entry *entry;
+
+    if (osal_irq_is_in_isr()) {
+        osal_timer_report("set_remaining is not allowed in ISR context");
+        return false;
+    }
+    if (!osal_timer_is_valid_id(timer_id)) {
+        osal_timer_report("set_remaining called with invalid timer id");
+        return false;
+    }
+
+    irq_state = osal_internal_critical_enter();
+    entry = s_timers[timer_id];
+    if ((entry == NULL) || (entry->cb == NULL)) {
+        osal_internal_critical_exit(irq_state);
+        osal_timer_report("set_remaining called on inactive timer id");
+        return false;
+    }
+    if (!entry->active) {
+        osal_internal_critical_exit(irq_state);
+        osal_timer_report("set_remaining called on stopped timer");
+        return false;
+    }
+
+    now_us = osal_timer_get_uptime_us64();
+    entry->expiry_us = now_us + (uint64_t)remaining_us;
+    osal_timer_refresh_next_expiry();
+    osal_internal_critical_exit(irq_state);
+    return true;
+}
+
 /* 函数说明：停止指定的软件定时器。 */
 void osal_timer_stop(int timer_id) {
     uint32_t irq_state;
@@ -513,10 +585,3 @@ void osal_timer_poll(void) {
     /* 软件定时器模块关闭时，这里保持为空操作。 */
 #endif
 }
-
-
-
-
-
-
-
