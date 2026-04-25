@@ -12,6 +12,22 @@
 
 `event` 和 `mutex` 已从当前公开接口与工程编译单元中移除。
 
+## 特性与优点
+
+- 面向 Cortex-M 裸机产品，不以模拟 RTOS API 为目标，保留裸机系统的确定性和可控性。
+- 支持 `SysTick`、`NVIC Group 4`、`SysTick` 优先级和 `DWT CYCCNT` 这类 Cortex-M 内核外设配置。
+- 提供基于优先级的协作式任务调度，`osal_start_system()` 启动后接管顶层循环，正常情况下不返回 `main()`。
+- 提供统一系统时基、`us/ms` 忙等延时、运行时间获取和软件定时器。
+- 提供固定单元大小的环形消息队列，支持自定义元素类型、元素大小和队列长度。
+- 提供任务态 queue 接口和 ISR queue 接口；ISR 接口始终是立即尝试，不做等待。
+- 提供统一静态堆和固定块内存池，不依赖 C 标准库 `malloc/free`。
+- 统一堆支持默认内部静态堆，也支持用户传入外部 heap buffer，方便放到指定 RAM 区域。
+- 固定块内存池适合固定大小、高频、ISR 可参与的对象申请与归还。
+- 提供轻量 `irq` 封装，统一关中断、恢复中断状态和 ISR 上下文判断。
+- 提供 DWT 临界区 profiling，可观察 OSAL system 层内部临界区的最大、最小、平均耗时。
+- 提供统一 debug hook，可报告非法句柄、错误上下文调用、二次释放、错误归还等问题。
+- 通过 `osal_config.h` 集中裁剪 queue、软件定时器、USART、Flash、debug、DWT profiling 等功能。
+
 ## 目录结构
 
 ```text
