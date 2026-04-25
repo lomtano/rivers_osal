@@ -1,4 +1,4 @@
-﻿#ifndef OSAL_TIMER_H
+#ifndef OSAL_TIMER_H
 #define OSAL_TIMER_H
 
 #include <stdint.h>
@@ -25,7 +25,7 @@ extern "C" {
  * - get_uptime_us / get_uptime_ms / get_tick: 任务态 / ISR
  * - delay_us / delay_ms: 推荐任务态，不建议 ISR 中使用
  * - poll: OSAL 启动循环 / 任务态
- * - create / start / stop / delete: 任务态
+ * - create / start / stop / delete / set_period / set_remaining: 任务态
  */
 
 /**
@@ -101,6 +101,26 @@ int osal_timer_create(uint32_t timeout_us, bool periodic, osal_timer_callback_t 
 bool osal_timer_start(int timer_id);
 
 /**
+ * @brief 动态修改软件定时器周期或单次超时时长。
+ * @param timer_id 定时器 ID。
+ * @param period_us 新的周期或单次超时时长，单位为微秒。
+ * @return 修改成功返回 true。
+ * @note 如果定时器正在运行，下一次到期时间会从当前时刻重新计算为 now + period_us。
+ * @note 如果定时器已停止，只修改保存的周期值，不会自动启动。
+ */
+bool osal_timer_set_period(int timer_id, uint32_t period_us);
+
+/**
+ * @brief 动态修改正在运行的软件定时器剩余计数时间。
+ * @param timer_id 定时器 ID。
+ * @param remaining_us 距离下一次到期还剩多少微秒。
+ * @return 修改成功返回 true。
+ * @note 该接口只对 active 定时器有效；停止状态下没有“当前计数值”，会返回 false。
+ * @note remaining_us 为 0 时，下一轮 osal_timer_poll() 会尽快处理该定时器。
+ */
+bool osal_timer_set_remaining(int timer_id, uint32_t remaining_us);
+
+/**
  * @brief 停止一个软件定时器。
  * @param timer_id 定时器 ID。
  */
@@ -118,6 +138,3 @@ void osal_timer_delete(int timer_id);
 #endif
 
 #endif /* OSAL_TIMER_H */
-
-
-
