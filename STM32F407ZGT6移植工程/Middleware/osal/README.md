@@ -17,7 +17,7 @@
 - 面向 Cortex-M 裸机产品，不以模拟 RTOS API 为目标，保留裸机系统的确定性和可控性。
 - 支持 `SysTick`、`NVIC Group 4`、`SysTick` 优先级和 `DWT CYCCNT` 这类 Cortex-M 内核外设配置。
 - 提供基于优先级的协作式任务调度，`osal_start_system()` 启动后接管顶层循环，正常情况下不返回 `main()`。
-- 提供统一系统时基、`us/ms` 忙等延时、运行时间获取和软件定时器。
+- 提供统一系统时基、`us/ms` 忙等延时、运行时间获取和软件定时器，并支持运行中动态调整软件定时器周期和剩余计数。
 - 提供固定单元大小的环形消息队列，支持自定义元素类型、元素大小和队列长度。
 - 提供任务态 queue 接口和 ISR queue 接口；ISR 接口始终是立即尝试，不做等待。
 - 提供统一静态堆和固定块内存池，不依赖 C 标准库 `malloc/free`。
@@ -55,6 +55,7 @@ osal/
 - `timeout_ms = N` 表示在 `N ms` 窗口内基于系统 tick 同步忙等重试，成功返回 `OSAL_OK`，到期返回 `OSAL_ERR_TIMEOUT`。
 - `osal_timer_delay_us()` / `osal_timer_delay_ms()` 仍然是忙等延时，会占用 CPU。
 - 软件定时器由 `osal_start_system()` 内部持续调用 `osal_timer_poll()` 驱动。
+- 软件定时器可以通过 `osal_timer_set_period()` 修改周期，通过 `osal_timer_set_remaining()` 修改当前剩余计数。
 - `osal_start_system()` 每轮调度后会调用 `OSAL_IDLE_HOOK()`，默认空操作，可用于接入低功耗 idle 处理。
 
 ## 模块边界
